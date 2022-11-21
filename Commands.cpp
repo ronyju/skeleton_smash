@@ -98,25 +98,28 @@ void ChangePromptCommand::execute() {
 //pwd
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line)
         : BuiltInCommand(cmd_line) {}
+
 void GetCurrDirCommand::execute() {
-    char* pwd = getcwd(NULL,0);
+    char *pwd = getcwd(NULL, 0);
     std::cout << (pwd) << "\n";
 }
 //showpid
 
-ShowPidCommand::ShowPidCommand(const char* cmd_line)
+ShowPidCommand::ShowPidCommand(const char *cmd_line)
         : BuiltInCommand(cmd_line) {}
 
 void ShowPidCommand::execute() {
     int pid = getpid();
     std::cout << (pid) << "\n";
 }
+
 //cd
-ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) : BuiltInCommand(cmd_line) {
-    _last_working_path = plastPwd;
-}
-void ChangeDirCommand::execute() {
-    /*
+//ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line) {
+//    _last_working_path = plastPwd;
+//}
+
+/*void ChangeDirCommand::execute() {
+
     char* path; // = second word in the command
     if (wait for oren to implement the array od the command) { // two arguments were given
         //ERROR - smash error: cd: too many arguments
@@ -137,7 +140,7 @@ void ChangeDirCommand::execute() {
         }
     }
 
-
+*/
 
 
 SmallShell::SmallShell() {
@@ -148,7 +151,7 @@ SmallShell::~SmallShell() {
 // TODO: add your implementation
 }
 
-/**
+/*
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
@@ -160,12 +163,13 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ShowPidCommand(cmd_line);
     } else if (firstWord.compare("chprompt") == 0) {
         return new ChangePromptCommand(cmd_line);
-  else if (firstWord.compare("cd") == 0){
-      return new ChangeDirCommand(cmd_line, &this->last_folder_path);
-  }
-  //else {
- //   return new ExternalCommand(cmd_line);
- // }
+    }
+    // } else if (firstWord.compare("cd") == 0) {
+    //    return new ChangeDirCommand(cmd_line, &this->last_folder_path);
+    // }
+    //else {
+    //   return new ExternalCommand(cmd_line);
+    // }
 
     return nullptr;
 }
