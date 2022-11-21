@@ -106,23 +106,21 @@ class JobsList {
   class JobEntry {
   public:
        unsigned int _job_id;
-      unsigned int _pid; // TODO :RONY
+       unsigned int _pid;
        Command* _command;
        time_t _job_start_time;
        time_t _job_stop_time = NULL;
        JobEntry(Command* command, unsigned int job_id);
-       ~JobEntry(); // TODO: need something more than default?
+       ~JobEntry();
        void StopJobEntry();
        void ReactivateJobEntry();
        bool isStoppedJob();
        void print(); //TODO: Oren - stopped or not
   };
 public:
- // TODO: Add your data members
- // vector of all jobs
  std::vector<JobEntry*> _vector_all_jobs;
 
- unsigned int _list_next_job_number = 1; // TODO: will be increased every time a job is created
+  unsigned int _list_next_job_number = 1; // will be increased every time a job is created
   JobsList();
   ~JobsList();
   void addJob(Command* cmd, bool isStopped = false); //TODO: RONY
