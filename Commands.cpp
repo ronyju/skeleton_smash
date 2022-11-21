@@ -93,6 +93,17 @@ void JobsList::JobEntry::StopJobEntry() {
 void JobsList::JobEntry::ReactivateJobEntry() {
     _is_stopped = false;
 }
+
+void JobsList::JobEntry::print() {
+    if (_is_stopped) {
+        double seconds_elapsed = difftime(_job_inserted_time, time(NULL));
+        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs"
+                  << " (stopped)";
+    } else {
+        double seconds_elapsed = difftime(_job_inserted_time, time(NULL));
+        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs";
+    }
+}
 //---------------------------------------------
 
 
@@ -102,7 +113,6 @@ void JobsList::addJob(Command *cmd, bool isStopped) {
     JobEntry *new_job = new JobEntry(cmd, _list_next_job_number, isStopped);
     _list_next_job_number++;
     _vector_all_jobs.push_back(new_job);
-
 }
 
 void JobsList::killAllJobs() {
@@ -179,7 +189,8 @@ void ChangeDirCommand::execute() {
         return;
     }
     char *path = _args[1]; // = second word in the command is the path
-    if (strcmp(path, CD_TO_OLD_PWD) == EQUALS) {
+    if (strcmp(path, CD_TO_OLD_PWD) == EQUALS )
+    {
         if (*_old_pwd == OLDPWD_NOT_SET) {
             std::cout << "smash error: cd: OLDPWD not set" << "\n";
             return;
@@ -190,6 +201,7 @@ void ChangeDirCommand::execute() {
     *_old_pwd = getcwd(NULL, 0); // update the old_pwd to the current path
     chdir(path);
 }
+
 
 
 SmallShell::SmallShell() {

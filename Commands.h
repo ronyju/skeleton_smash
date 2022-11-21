@@ -136,13 +136,15 @@ public:
         bool _is_stopped;
         time_t _job_inserted_time;
 
-        JobEntry(Command *command, unsigned int job_id, bool is_stopped);
+        JobEntry(Command *command, unsigned int job_id);
 
         ~JobEntry();
 
         void StopJobEntry();
 
         void ReactivateJobEntry();
+
+        bool isStoppedJob();
 
         void print(); //TODO: Oren - stopped or not
     };
@@ -192,7 +194,6 @@ public:
 
 //bg
 class BackgroundCommand : public BuiltInCommand {
-    // TODO: Add your data members
 public:
     BackgroundCommand(const char *cmd_line, JobsList *jobs);
 
