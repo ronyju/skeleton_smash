@@ -158,7 +158,7 @@ public:
     ~JobsList();
 
     void addJob(Command *cmd, bool isStopped = false); //TODO: RONY
-    void printJobsList(); //TODO : Oren (check if delete)
+    void printJobsList(); //TODO : Oren (check if delete) - done
     void killAllJobs(); //TODO: RONY
     void removeFinishedJobs(); //TODO: Oren
     JobEntry *getJobById(int jobId); //TODO: RONY
