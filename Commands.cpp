@@ -20,6 +20,9 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #else
 #define FUNC_ENTRY()
 #define FUNC_EXIT()
+#define CD_TO_OLD_PWD "-"
+#define EQUALS 0
+#define OLDPWD_NOT_SET NULL
 #endif
 
 string _ltrim(const std::string &s) {
@@ -114,33 +117,29 @@ void ShowPidCommand::execute() {
 }
 
 //cd
-//ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line) {
-//    _last_working_path = plastPwd;
-//}
+ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line) {
+    _old_pwd = plastPwd;
+}
 
-/*void ChangeDirCommand::execute() {
-
-    char* path; // = second word in the command
-    if (wait for oren to implement the array od the command) { // two arguments were given
-        //ERROR - smash error: cd: too many arguments
+void ChangeDirCommand::execute() {
+    if (number_of_args > 2) {
         std::cout << "smash error: cd: too many arguments" << "\n";
         return;
     }
-    if (wait for oren to implement the array od the command)// (-) second word is - than jump to the last_pwd. and updat the last to be one before.
+    char *path = _args[1]; // = second word in the command is the path
+    if (strcmp(path, CD_TO_OLD_PWD) == EQUALS )
     {
-        if (*_last_working_path == NULL) {// this is the first folder ever
-            //ERROR - smash error: cd: OLDPWD not set
+        if (*_old_pwd == OLDPWD_NOT_SET) {
             std::cout << "smash error: cd: OLDPWD not set" << "\n";
             return;
-        }
-        else{// jump to the last path and update the smash last path
-            path = *_last_working_path;
-            *_last_working_path =  getcwd(NULL,0);
-            chdir(path);
+        } else {
+            path = *_old_pwd;
         }
     }
+    *_old_pwd = getcwd(NULL, 0); // update the old_pwd to the current path
+    chdir(path);
+}
 
-*/
 
 
 SmallShell::SmallShell() {
@@ -163,10 +162,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ShowPidCommand(cmd_line);
     } else if (firstWord.compare("chprompt") == 0) {
         return new ChangePromptCommand(cmd_line);
+    } else if (firstWord.compare("cd") == 0) {
+        return new ChangeDirCommand(cmd_line, &this->_old_pwd);
     }
-    // } else if (firstWord.compare("cd") == 0) {
-    //    return new ChangeDirCommand(cmd_line, &this->last_folder_path);
-    // }
     //else {
     //   return new ExternalCommand(cmd_line);
     // }

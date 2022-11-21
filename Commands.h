@@ -1,5 +1,6 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
+#define OLDPWD_NOT_SET NULL
 
 #include <vector>
 
@@ -8,7 +9,6 @@
 
 class Command {
 // TODO: Add your data members
-
 protected:
     std::string _cmd_line;
     char *_args[COMMAND_MAX_ARGS];
@@ -72,7 +72,7 @@ public:
   virtual ~ChangeDirCommand() {}
   void execute() override;
 private:
-    char** _last_working_path = NULL;
+    char** _old_pwd = NULL;
 };
 //pwd
 class GetCurrDirCommand : public BuiltInCommand {
@@ -189,7 +189,7 @@ private:
     // TODO: Add your data members
     std::string shell_prompt = "smash";
 public:
-    char* last_folder_path = NULL; //defult - "" if not yes set, will be set by cd.
+    char* _old_pwd = OLDPWD_NOT_SET; // will be set by cd
     Command *CreateCommand(const char *cmd_line);
     SmallShell();
     SmallShell(SmallShell const &) = delete; // disable copy ctor
