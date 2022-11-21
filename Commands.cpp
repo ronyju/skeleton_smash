@@ -79,51 +79,74 @@ void _removeBackgroundSign(char *cmd_line) {
 
 //-----------------JobEntry-------------------
 
-JobsList::JobEntry::JobEntry(Command* command, unsigned int job_id)
-    : _job_id(job_id), _command(command) {
+JobsList::JobEntry::JobEntry(Command *command, unsigned int job_id)
+        : _job_id(job_id), _command(command) {
     time_t _job_start_time = time(NULL);
     time_t _job_stop_time = NULL;
     _pid = getpid(); //  TODO: is this the right pid? is this happening after the fork ? should we set it later?
 }
-void JobsList::JobEntry::StopJobEntry(){
-    _job_stop_time =  time(NULL);
+
+void JobsList::JobEntry::StopJobEntry() {
+    _job_stop_time = time(NULL);
     //TODO: move between vectors here?
 }
-void JobsList::JobEntry::ReactivateJobEntry(){
+
+void JobsList::JobEntry::ReactivateJobEntry() {
     _job_stop_time = NULL;
     //TODO: move between vectors here?
 }
-bool JobsList::JobEntry::isStoppedJob(){
+
+bool JobsList::JobEntry::isStoppedJob() {
     return (_job_stop_time != NULL);
+}
+
+void JobsList::JobEntry::print() {
+    if (_is_stopped) {
+        double seconds_elapsed = difftime(_job_inserted_time, time(NULL));
+        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs"
+                  << " (stopped)";
+    } else {
+        double seconds_elapsed = difftime(_job_inserted_time, time(NULL));
+        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs";
+    }
 }
 //---------------------------------------------
 
 
 //-----------------JobsList-------------------
-
-void JobsList::addJob(Command* cmd, bool isStopped){
-    JobEntry* new_job = new JobEntry(cmd, _list_next_job_number );
-    _list_next_job_number ++;
+/*
+void JobsList::addJob(Command *cmd, bool isStopped) {
+    JobEntry *new_job = new JobEntry(cmd, _list_next_job_number);
+    _list_next_job_number++;
     _vector_all_jobs.push_back(new_job);
 }
 
 void JobsList::printJobsList();
+
 void JobsList::killAllJobs();
+
 void JobsList::removeFinishedJobs();
-JobEntry * JobsList::getJobById(int jobId);
+
+JobEntry *JobsList::getJobById(int jobId);
+
 void JobsList::removeJobById(int jobId);
-JobEntry * JobsList::getLastJob(int* lastJobId);
+
+JobEntry *JobsList::getLastJob(int *lastJobId);
+
 JobEntry *JobsList::getLastStoppedJob(int *jobId);
-bool isInTheBackground(JobEntry* job);
+
+bool isInTheBackground(JobEntry *job);*/
 //---------------------------------------------
 
 //-----------------Command-------------------
 
-Command::Command(const char *cmd_line) : _cmd_line(cmd_line) {
-    is_background_command =  _isBackgroundComamnd(cmd_line);
+Command::Command(const char *cmd_line) {
+    is_background_command = _isBackgroundComamnd(cmd_line);
     string cmd_trimmed = _trim(string(cmd_line));
-    _removeBackgroundSign(const_cast<char*>(cmd_trimmed.c_str())); // TODO: check this !!
-    number_of_args = _parseCommandLine(const_cast<char*>(cmd_trimmed.c_str()), _args);
+    _original_cmd_line = cmd_trimmed;
+    _removeBackgroundSign(const_cast<char *>(cmd_trimmed.c_str())); // TODO: check this !!
+    number_of_args = _parseCommandLine(const_cast<char *>(cmd_trimmed.c_str()), _args);
+    _cmd_line = cmd_trimmed;
 }
 
 BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line) {}
@@ -168,8 +191,7 @@ void ChangeDirCommand::execute() {
         return;
     }
     char *path = _args[1]; // = second word in the command is the path
-    if (strcmp(path, CD_TO_OLD_PWD) == EQUALS )
-    {
+    if (strcmp(path, CD_TO_OLD_PWD) == EQUALS) {
         if (*_old_pwd == OLDPWD_NOT_SET) {
             std::cout << "smash error: cd: OLDPWD not set" << "\n";
             return;
@@ -180,7 +202,6 @@ void ChangeDirCommand::execute() {
     *_old_pwd = getcwd(NULL, 0); // update the old_pwd to the current path
     chdir(path);
 }
-
 
 
 SmallShell::SmallShell() {
@@ -197,13 +218,13 @@ SmallShell::~SmallShell() {
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-    if ( (firstWord.compare("pwd")             == EQUALS) || (firstWord.compare("pwd&")      == EQUALS) ) {
+    if ((firstWord.compare("pwd") == EQUALS) || (firstWord.compare("pwd&") == EQUALS)) {
         return new GetCurrDirCommand(cmd_line);
-    } else if ( (firstWord.compare("showpid")  == EQUALS) || (firstWord.compare("showpid&")  == EQUALS) ) {
+    } else if ((firstWord.compare("showpid") == EQUALS) || (firstWord.compare("showpid&") == EQUALS)) {
         return new ShowPidCommand(cmd_line);
-    } else if ( (firstWord.compare("chprompt") == EQUALS) || (firstWord.compare("chprompt&") == EQUALS) ) {
+    } else if ((firstWord.compare("chprompt") == EQUALS) || (firstWord.compare("chprompt&") == EQUALS)) {
         return new ChangePromptCommand(cmd_line);
-    } else if ( (firstWord.compare("cd")       == EQUALS) || (firstWord.compare("cd&")       == EQUALS) ) {
+    } else if ((firstWord.compare("cd") == EQUALS) || (firstWord.compare("cd&") == EQUALS)) {
         return new ChangeDirCommand(cmd_line, &this->_old_pwd);
     }
     //else {
