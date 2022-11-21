@@ -77,12 +77,66 @@ void _removeBackgroundSign(char *cmd_line) {
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+//-----------------JobEntry-------------------
+
+
+JobsList::JobEntry::JobEntry(Command* command, unsigned int job_id)
+    : _job_id(job_id), _command(command) {
+    time_t _job_start_time = time(NULL);
+    time_t _job_stop_time = NULL;
+}
+void JobsList::JobEntry::StopJobEntry(){
+    _job_stop_time =  time(NULL);
+    //TODO: move between vectors here?
+}
+void JobsList::JobEntry::ReactivateJobEntry(){
+    _job_stop_time = NULL;
+    //TODO: move between vectors here?
+}
+bool JobsList::JobEntry::isStoppedJob(){
+    return (_job_stop_time != NULL);
+}
+//---------------------------------------------
+
+
+//-----------------JobsList-------------------
+
+//std::vector<JobEntry*> _vector_all_jobs;
+// vector of stopped jobs
+//std::vector<JobEntry*> _vector_stopped_jobs;
+// vector of jobs running in the background
+//std::vector<JobEntry*> _vector_background_jobs;
+// vector of jobs running in the foreground
+//std::vector<JobEntry*> _vector_foreground_jobs; no need
+
+void JobsList::addJob(Command* cmd, bool isStopped){
+    JobEntry* new_job = new JobEntry(cmd, _list_next_job_number );
+    _list_next_job_number ++;
+    _vector_all_jobs.push_back(new_job);
+    if (_isBackgroundComamnd(static_cast<const char*>cmd->_cmd_line)) {// is &
+        _vector_background_jobs.push_back(new_job);
+    }
+    else{
+        _vector_foreground_jobs.push_back(new_job);
+    }
+}
+
+void JobsList::printJobsList();
+void JobsList::killAllJobs();
+void JobsList::removeFinishedJobs();
+JobEntry * JobsList::getJobById(int jobId);
+void JobsList::removeJobById(int jobId);
+JobEntry * JobsList::getLastJob(int* lastJobId);
+JobEntry *JobsList::getLastStoppedJob(int *jobId);
+bool isInTheBackground(JobEntry* job);
+//---------------------------------------------
 // TODO: Add your implementation for classes in Commands.h
 
-
 Command::Command(const char *cmd_line) : _cmd_line(cmd_line) {
+    is_background_command =  _isBackgroundComamnd(cmd_line);
     string cmd_trimmed = _trim(string(cmd_line));
-    number_of_args = _parseCommandLine(cmd_line, _args);
+    _removeBackgroundSign(const_cast<char*>(cmd_trimmed.c_str())); // TODO: check this !!
+    number_of_args = _parseCommandLine(const_cast<char*>(cmd_trimmed.c_str()), _args);
 }
 
 BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line) {}

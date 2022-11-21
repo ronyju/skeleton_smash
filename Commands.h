@@ -10,12 +10,13 @@
 class Command {
 // TODO: Add your data members
 protected:
+
     std::string _cmd_line;
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
 public:
     Command(const char *cmd_line);
-
+    bool is_background_command = false;
   virtual ~Command() = default;
   virtual void execute() = 0;
   //virtual void prepare();
@@ -103,25 +104,36 @@ public:
 class JobsList {
  public:
   class JobEntry {
-   // TODO: Add your data members
-   // job id, time_start, command_line, process id , stopped time
+  public:
+       unsigned int _job_id;
+      unsigned int _pid; // TODO :RONY
+       Command* _command;
+       time_t _job_start_time;
+       time_t _job_stop_time = NULL;
+       JobEntry(Command* command, unsigned int job_id);
+       ~JobEntry(); // TODO: need something more than default?
+       void StopJobEntry();
+       void ReactivateJobEntry();
+       bool isStoppedJob();
+       void print(); //TODO: Oren - stopped or not
   };
+public:
  // TODO: Add your data members
  // vector of all jobs
- // vector of stopped jobs
- // vector of
- public:
+ std::vector<JobEntry*> _vector_all_jobs;
+
+ unsigned int _list_next_job_number = 1; // TODO: will be increased every time a job is created
   JobsList();
   ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false);
-  void printJobsList();
-  void killAllJobs();
-  void removeFinishedJobs();
-  JobEntry * getJobById(int jobId);
-  void removeJobById(int jobId);
-  JobEntry * getLastJob(int* lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
-  // TODO: Add extra methods or modify exisitng ones as needed
+  void addJob(Command* cmd, bool isStopped = false); //TODO: RONY
+  void printJobsList(); //TODO : Oren (check if delete)
+  void killAllJobs(); //TODO: RONY
+  void removeFinishedJobs(); //TODO: Oren
+  JobEntry * getJobById(int jobId); //TODO: RONY
+  void removeJobById(int jobId); // wait
+  JobEntry * getLastJob(int* lastJobId); //TODO: Oren
+  JobEntry *getLastStoppedJob(int *jobId);//TODO: RONY
+  bool isInTheBackground(JobEntry* job); // TODO: RONY
 };
 //jobs
 class JobsCommand : public BuiltInCommand {
