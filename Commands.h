@@ -21,7 +21,7 @@ class Command {
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char *cmdLine, const char *cmd_line);
+  BuiltInCommand(const char *cmd_line);
   virtual ~BuiltInCommand() {}
 };
 
@@ -61,15 +61,18 @@ class ChangePromptCommand : public BuiltInCommand {
 
 //cd
 class ChangeDirCommand : public BuiltInCommand {
+public:
 // TODO: Add your data members public:
   ChangeDirCommand(const char* cmd_line, char** plastPwd);
   virtual ~ChangeDirCommand() {}
   void execute() override;
+private:
+    char** _last_working_path = NULL;
 };
 //pwd
 class GetCurrDirCommand : public BuiltInCommand {
  public:
-  GetCurrDirCommand(const char *cmdLine, const char *cmdLine1, const char *cmd_line);
+  GetCurrDirCommand(const char *cmd_line);
   virtual ~GetCurrDirCommand() {}
   void execute() override;
 };
@@ -96,8 +99,12 @@ class JobsList {
  public:
   class JobEntry {
    // TODO: Add your data members
+   // job id, time_start, command_line, process id , stopped time
   };
  // TODO: Add your data members
+ // vector of all jobs
+ // vector of stopped jobs
+ // vector of
  public:
   JobsList();
   ~JobsList();
@@ -178,6 +185,7 @@ class SmallShell {
   SmallShell();
   std::string shell_prompt = "smash";
  public:
+  char* last_folder_path = NULL; //defult - "" if not yes set, will be set by cd.
   Command *CreateCommand(const char* cmd_line);
   SmallShell(SmallShell const&)      = delete; // disable copy ctor
   void operator=(SmallShell const&)  = delete; // disable = operator

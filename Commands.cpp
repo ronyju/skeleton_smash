@@ -81,29 +81,58 @@ void _removeBackgroundSign(char* cmd_line) {
 
 
 Command::Command(const char* cmd_line){ _cmd_line = cmd_line;}
-BuiltInCommand::BuiltInCommand(const char *cmdLine, const char *cmd_line) : Command(cmdLine) {}
+BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line) {}
 
 
 
 
 //pwd
-GetCurrDirCommand::GetCurrDirCommand(const char *cmdLine, const char *cmdLine1, const char *cmd_line)
-        : BuiltInCommand(cmdLine, cmdLine1) {}
+GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line)
+        : BuiltInCommand(cmd_line) {}
 void GetCurrDirCommand::execute() {
     char* pwd = getcwd(NULL,0);
     std::cout << (pwd) << "\n";
 }
 //showpid
 
-    ShowPidCommand::ShowPidCommand(const char* cmd_line)
-            : BuiltInCommand(NULL, cmd_line) {}
+ShowPidCommand::ShowPidCommand(const char* cmd_line)
+        : BuiltInCommand(cmd_line) {}
 
-    void ShowPidCommand::execute() {
-        int pid = getpid();
-        std::cout << (pid) << "\n";
+void ShowPidCommand::execute() {
+    int pid = getpid();
+    std::cout << (pid) << "\n";
+}
+//cd
+ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) : BuiltInCommand(cmd_line) {
+    _last_working_path = plastPwd;
+}
+void ChangeDirCommand::execute() {
+    /*
+    char* path; // = second word in the command
+    if (wait for oren to implement the array od the command) { // two arguments were given
+        //ERROR - smash error: cd: too many arguments
+        std::cout << "smash error: cd: too many arguments" << "\n";
+        return;
+    }
+    if (wait for oren to implement the array od the command)// (-) second word is - than jump to the last_pwd. and updat the last to be one before.
+    {
+        if (*_last_working_path == NULL) {// this is the first folder ever
+            //ERROR - smash error: cd: OLDPWD not set
+            std::cout << "smash error: cd: OLDPWD not set" << "\n";
+            return;
+        }
+        else{// jump to the last path and update the smash last path
+            path = *_last_working_path;
+            *_last_working_path =  getcwd(NULL,0);
+            chdir(path);
+        }
     }
 
-
+    // regular cd:
+    *_last_working_path =  getcwd(NULL,0);
+    chdir(path);
+    */
+}
 
 
 SmallShell::SmallShell() {
@@ -121,12 +150,15 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
   if (firstWord.compare("pwd") == 0) {
-    return new GetCurrDirCommand(nullptr, nullptr, cmd_line);
+    return new GetCurrDirCommand(cmd_line);
   }
   else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
  }
- // else {
+  else if (firstWord.compare("cd") == 0){
+      return new ChangeDirCommand(cmd_line, &this->last_folder_path);
+  }
+  //else {
  //   return new ExternalCommand(cmd_line);
  // }
 
