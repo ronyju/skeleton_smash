@@ -96,20 +96,48 @@ void ChangePromptCommand::execute() {
 
 
 //pwd
-GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
-
+GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line)
+        : BuiltInCommand(cmd_line) {}
 void GetCurrDirCommand::execute() {
-    char *pwd = getcwd(NULL, 0);
+    char* pwd = getcwd(NULL,0);
     std::cout << (pwd) << "\n";
 }
-
 //showpid
-ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+ShowPidCommand::ShowPidCommand(const char* cmd_line)
+        : BuiltInCommand(cmd_line) {}
 
 void ShowPidCommand::execute() {
     int pid = getpid();
     std::cout << (pid) << "\n";
 }
+//cd
+ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** plastPwd) : BuiltInCommand(cmd_line) {
+    _last_working_path = plastPwd;
+}
+void ChangeDirCommand::execute() {
+    /*
+    char* path; // = second word in the command
+    if (wait for oren to implement the array od the command) { // two arguments were given
+        //ERROR - smash error: cd: too many arguments
+        std::cout << "smash error: cd: too many arguments" << "\n";
+        return;
+    }
+    if (wait for oren to implement the array od the command)// (-) second word is - than jump to the last_pwd. and updat the last to be one before.
+    {
+        if (*_last_working_path == NULL) {// this is the first folder ever
+            //ERROR - smash error: cd: OLDPWD not set
+            std::cout << "smash error: cd: OLDPWD not set" << "\n";
+            return;
+        }
+        else{// jump to the last path and update the smash last path
+            path = *_last_working_path;
+            *_last_working_path =  getcwd(NULL,0);
+            chdir(path);
+        }
+    }
+
+
 
 
 SmallShell::SmallShell() {
@@ -132,10 +160,12 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ShowPidCommand(cmd_line);
     } else if (firstWord.compare("chprompt") == 0) {
         return new ChangePromptCommand(cmd_line);
-    }
-    // else {
-    //   return new ExternalCommand(cmd_line);
-    // }
+  else if (firstWord.compare("cd") == 0){
+      return new ChangeDirCommand(cmd_line, &this->last_folder_path);
+  }
+  //else {
+ //   return new ExternalCommand(cmd_line);
+ // }
 
     return nullptr;
 }
