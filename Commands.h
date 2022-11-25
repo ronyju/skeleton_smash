@@ -136,7 +136,7 @@ public:
         bool _is_stopped;
         time_t _job_inserted_time;
 
-        JobEntry(Command *command, unsigned int job_id);
+        JobEntry(Command *command, unsigned int job_id, bool is_stopped);
 
         ~JobEntry();
 
@@ -164,7 +164,7 @@ public:
 
     void removeFinishedJobs(); //TODO: Oren
     JobEntry *getJobById(int jobId); //return null when not found
-    void removeJobById(int jobId); // wait
+    void removeJobById(int jobId); // wait, is this to kill or just to remove?
     JobEntry *getLastJob(int *lastJobId); //TODO: Oren - wait
     JobEntry *getLastStoppedJob(int *jobId);//TODO: RONY - wait
     bool isInTheBackground(JobEntry *job);

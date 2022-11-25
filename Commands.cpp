@@ -117,7 +117,7 @@ void JobsList::addJob(Command *cmd, bool isStopped) {
 
 void JobsList::killAllJobs() {
     for (auto &job: _vector_all_jobs) {
-        removeJobById(job->_job_id);
+        //    removeJobById(job->_job_id); TODO: add this line after implement removeJobById.
         kill(job->_pid, SIGKILL);
     }
 }
@@ -189,8 +189,7 @@ void ChangeDirCommand::execute() {
         return;
     }
     char *path = _args[1]; // = second word in the command is the path
-    if (strcmp(path, CD_TO_OLD_PWD) == EQUALS )
-    {
+    if (strcmp(path, CD_TO_OLD_PWD) == EQUALS) {
         if (*_old_pwd == OLDPWD_NOT_SET) {
             std::cout << "smash error: cd: OLDPWD not set" << "\n";
             return;
@@ -201,8 +200,7 @@ void ChangeDirCommand::execute() {
     *_old_pwd = getcwd(NULL, 0); // update the old_pwd to the current path
     chdir(path);
 }
-
-
+//---------------------------------------------
 
 SmallShell::SmallShell() {
 // TODO: add your implementation
