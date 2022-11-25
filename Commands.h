@@ -12,10 +12,12 @@ class Command {
 protected:
 
     std::string _cmd_line;
-    std::string _original_cmd_line;
+
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
 public:
+    std::string _original_cmd_line;
+
     Command(const char *cmd_line);
 
     bool is_background_command = false;
@@ -122,6 +124,8 @@ class JobsList;
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members
 public:
+    JobsList *_job_list;
+
     QuitCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~QuitCommand() {}
