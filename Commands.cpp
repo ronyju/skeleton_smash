@@ -185,13 +185,13 @@ ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : Buil
 
 void ChangeDirCommand::execute() {
     if (number_of_args > 2) {
-        std::cout << "smash error: cd: too many arguments" << "\n";
+        perror("smash error: cd: too many arguments");
         return;
     }
     char *path = _args[1]; // = second word in the command is the path
     if (strcmp(path, CD_TO_OLD_PWD) == EQUALS) {
         if (*_old_pwd == OLDPWD_NOT_SET) {
-            std::cout << "smash error: cd: OLDPWD not set" << "\n";
+            perror("smash error: cd: OLDPWD not set");
             return;
         } else {
             path = *_old_pwd;
@@ -224,10 +224,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ChangePromptCommand(cmd_line);
     } else if ((firstWord.compare("cd") == EQUALS) || (firstWord.compare("cd&") == EQUALS)) {
         return new ChangeDirCommand(cmd_line, &this->_old_pwd);
+    } else {
+        return new ExternalCommand(cmd_line);
     }
-    //else {
-    //   return new ExternalCommand(cmd_line);
-    // }
 
     return nullptr;
 }
@@ -246,4 +245,35 @@ std::string SmallShell::GetPrompt() {
 
 void SmallShell::SetPrompt(const char *newPromptName) {
     shell_prompt = newPromptName;
+}
+
+ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
+    is_bash_problem = IsBashCommand();
+}
+
+void ExternalCommand::execute() {
+    int son_pid = fork();
+    if (son_pid == -1) {
+        perror("smash error: fork failed");
+        return;
+    }
+    bool son = (son_pid == 0);
+    if (son) {
+        if (is_bash_problem) {
+            execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL);
+        } else {
+            execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL); //TODO: all bash?
+        }
+    }
+    if (is_background_command) {
+        // TODO: add job list, will be removed before printing jobs
+    } else {
+        if (waitpid(son_pid, NULL, WUNTRACED) < 0) {
+            perror("smash error: waitpid failed");
+        }
+    }
+}
+
+bool ExternalCommand::IsBashCommand() {
+    return false;
 }

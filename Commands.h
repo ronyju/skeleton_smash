@@ -42,6 +42,10 @@ public:
     virtual ~ExternalCommand() {}
 
     void execute() override;
+
+    bool IsBashCommand(); //RONY
+private:
+    bool is_bash_problem;
 };
 
 class PipeCommand : public Command {
@@ -162,11 +166,11 @@ public:
     void printJobsList(); //TODO : Oren (check if delete)
     void killAllJobs();
 
-    void removeFinishedJobs(); //TODO: Oren
+    void removeFinishedJobs(); //TODO: Oren -wait
     JobEntry *getJobById(int jobId); //return null when not found
     void removeJobById(int jobId); // wait, is this to kill or just to remove?
     JobEntry *getLastJob(int *lastJobId); //TODO: Oren - wait
-    JobEntry *getLastStoppedJob(int *jobId);//TODO: RONY - wait
+    JobEntry *getLastStoppedJob(int *jobId); //TODO: RONY - wait
     bool isInTheBackground(JobEntry *job);
 };
 
