@@ -177,8 +177,9 @@ public:
 
 //jobs
 class JobsCommand : public BuiltInCommand {
-    // TODO: Add your data member
 public:
+    JobsList *_job_list;
+
     JobsCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~JobsCommand() {}

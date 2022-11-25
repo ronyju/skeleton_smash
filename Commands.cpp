@@ -104,13 +104,12 @@ void JobsList::JobEntry::ReactivateJobEntry() {
 }
 
 void JobsList::JobEntry::print() {
+    double seconds_elapsed = difftime(time(NULL), _job_inserted_time);
     if (_is_stopped) {
-        double seconds_elapsed = difftime(_job_inserted_time, time(NULL));
         std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs"
-                  << " (stopped)";
+                  << " (stopped)\n";
     } else {
-        double seconds_elapsed = difftime(_job_inserted_time, time(NULL));
-        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs";
+        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs\n";
     }
 }
 //---------------------------------------------
@@ -262,6 +261,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ChangePromptCommand(cmd_line);
     } else if ((firstWord.compare("cd") == EQUALS) || (firstWord.compare("cd&") == EQUALS)) {
         return new ChangeDirCommand(cmd_line, &this->_old_pwd);
+    } else if ((firstWord.compare("jobs") == EQUALS) || (firstWord.compare("jobs&") == EQUALS)) {
+        return new JobsCommand(cmd_line, this->_jobs_list);
     } else {
         return new ExternalCommand(cmd_line);
     }
@@ -313,3 +314,10 @@ void ExternalCommand::execute() {
     }
 }
 
+JobsCommand::JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
+    _job_list = jobs;
+}
+
+void JobsCommand::execute() {
+    _job_list->printJobsList();
+}
