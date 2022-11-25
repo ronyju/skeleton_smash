@@ -280,6 +280,7 @@ public:
     // TODO: add extra methods as needed
     std::string GetPrompt(); // TODO:
     void SetPrompt(const char *); //TODO:
+    int currentPidInFg = 0;
 };
 
 #endif //SMASH_COMMAND_H_

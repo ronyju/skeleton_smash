@@ -252,6 +252,7 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 }
 
 void ExternalCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
     int son_pid = fork();
     if (son_pid == -1) {
         perror("smash error: fork failed");
@@ -268,9 +269,11 @@ void ExternalCommand::execute() {
     if (is_background_command) {
         // TODO: add job list, will be removed before printing jobs
     } else {
+        smash.currentPidInFg = son_pid;
         if (waitpid(son_pid, NULL, WUNTRACED) < 0) {
             perror("smash error: waitpid failed");
         }
+        smash.currentPidInFg = 0;
     }
 }
 
