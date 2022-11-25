@@ -25,9 +25,11 @@ public:
     virtual ~Command() = default;
 
     virtual void execute() = 0;
+
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
+    bool error_command_dont_execute = false;
 };
 
 class BuiltInCommand : public Command {
