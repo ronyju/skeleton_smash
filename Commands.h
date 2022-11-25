@@ -140,7 +140,7 @@ public:
         bool _is_stopped;
         time_t _job_inserted_time;
 
-        JobEntry(Command *command, unsigned int job_id, bool is_stopped);
+        JobEntry(Command *command, unsigned int job_id, unsigned pid, bool is_stopped);
 
         ~JobEntry();
 
@@ -157,11 +157,11 @@ public:
     std::vector<JobEntry *> _vector_all_jobs;
 
     unsigned int _list_next_job_number = 1; // will be increased every time a job is created
-    JobsList();
+    JobsList() {};
 
-    ~JobsList();
+    ~JobsList() {};
 
-    void addJob(Command *cmd, bool isStopped = false);
+    void addJob(Command *cmd, unsigned int pid, bool isStopped = false);
 
     void printJobsList(); //TODO : Oren (check if delete)
     void killAllJobs();
@@ -259,6 +259,7 @@ private:
     // TODO: Add your data members
     std::string shell_prompt = "smash";
 public:
+    JobsList *_jobs_list;
     char *_old_pwd = OLDPWD_NOT_SET; // will be set by cd
     Command *CreateCommand(const char *cmd_line);
 
@@ -278,8 +279,9 @@ public:
     void executeCommand(const char *cmd_line);
 
     // TODO: add extra methods as needed
-    std::string GetPrompt(); // TODO:
-    void SetPrompt(const char *); //TODO:
+    std::string GetPrompt();
+
+    void SetPrompt(const char *);
 };
 
 #endif //SMASH_COMMAND_H_

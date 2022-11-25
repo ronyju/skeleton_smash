@@ -80,10 +80,9 @@ void _removeBackgroundSign(char *cmd_line) {
 
 //-----------------JobEntry-------------------
 
-JobsList::JobEntry::JobEntry(Command *command, unsigned int job_id, bool is_stopped)
-        : _job_id(job_id), _command(command), _is_stopped(is_stopped) {
+JobsList::JobEntry::JobEntry(Command *command, unsigned int job_id, unsigned int pid, bool is_stopped)
+        : _job_id(job_id), _command(command), _is_stopped(is_stopped), _pid(pid) {
     time_t _job_inserted_time = time(NULL);
-    _pid = getpid(); //  TODO: is this the right pid? is this happening after the fork ? should we set it later?
 }
 
 void JobsList::JobEntry::StopJobEntry() {
@@ -109,8 +108,8 @@ void JobsList::JobEntry::print() {
 
 //-----------------JobsList-------------------
 
-void JobsList::addJob(Command *cmd, bool isStopped) {
-    JobEntry *new_job = new JobEntry(cmd, _list_next_job_number, isStopped);
+void JobsList::addJob(Command *cmd, unsigned int pid, bool isStopped) {
+    JobEntry *new_job = new JobEntry(cmd, _list_next_job_number, pid, isStopped);
     _list_next_job_number++;
     _vector_all_jobs.push_back(new_job);
 }
@@ -203,11 +202,11 @@ void ChangeDirCommand::execute() {
 //---------------------------------------------
 
 SmallShell::SmallShell() {
-// TODO: add your implementation
+    _jobs_list = new JobsList();
 }
 
 SmallShell::~SmallShell() {
-// TODO: add your implementation
+    delete _jobs_list;
 }
 
 /*
@@ -252,13 +251,14 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 }
 
 void ExternalCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
     int son_pid = fork();
     if (son_pid == -1) {
         perror("smash error: fork failed");
         return;
     }
-    bool son = (son_pid == 0);
-    if (son) {
+    if (son_pid == 0 /*son*/) {
+        setpgrp();
         if (is_bash_problem) {
             execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL);
         } else {
@@ -266,7 +266,7 @@ void ExternalCommand::execute() {
         }
     }
     if (is_background_command) {
-        // TODO: add job list, will be removed before printing jobs
+        smash._jobs_list->addJob(this, son_pid);
     } else {
         if (waitpid(son_pid, NULL, WUNTRACED) < 0) {
             perror("smash error: waitpid failed");
