@@ -279,7 +279,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     } else if ((firstWord.compare("jobs") == EQUALS) || (firstWord.compare("jobs&") == EQUALS)) {
         return new JobsCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("quit") == EQUALS) || (firstWord.compare("quit&") == EQUALS)) {
-        //return new QuitCommand(cmd_line, this->_jobs_list);
+        return new QuitCommand(cmd_line, this->_jobs_list);
     } else {
         return new ExternalCommand(cmd_line);
     }
@@ -387,4 +387,24 @@ void ForegroundCommand::execute() {
 //----------------------------------------
 QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
     _job_list = jobs;
+}
+
+QuitCommand::~QuitCommand() {}
+
+void QuitCommand::execute() {
+    if (number_of_args >= 2) {
+        string first_arg(_args[1]);
+        if (first_arg == "kill") {
+            std::cout << "smash: sending SIGKILL signal to " << _job_list->_vector_all_jobs.size() << " jobs:"
+                      << std::endl;
+            for (auto job: _job_list->_vector_all_jobs) {
+                std::cout << job->_pid << ": " << job->_command->_original_cmd_line << endl;
+            }
+            _job_list->killAllJobs();
+        }
+    }
+    if (kill(getpid(), SIGKILL) == 0) {
+        perror("smash error: kill failed");
+    }
+//TODO: delete killed comment printed
 }

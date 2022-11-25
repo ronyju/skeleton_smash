@@ -128,7 +128,7 @@ public:
 
     QuitCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~QuitCommand() {}
+    virtual ~QuitCommand();
 
     void execute() override;
 };
