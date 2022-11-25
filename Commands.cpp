@@ -274,6 +274,3 @@ void ExternalCommand::execute() {
     }
 }
 
-bool ExternalCommand::IsBashCommand() {
-    return false;
-}

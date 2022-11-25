@@ -43,7 +43,7 @@ public:
 
     void execute() override;
 
-    bool IsBashCommand(); //RONY
+    bool IsBashCommand() { return true; } //TODO: change?
 private:
     bool is_bash_problem;
 };
