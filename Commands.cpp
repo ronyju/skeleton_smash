@@ -106,10 +106,12 @@ void JobsList::JobEntry::ReactivateJobEntry() {
 void JobsList::JobEntry::print() {
     double seconds_elapsed = difftime(time(NULL), _job_inserted_time);
     if (_is_stopped) {
-        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs"
+        std::cout << "[" << _job_id << "]" << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
+                  << " secs"
                   << " (stopped)\n";
     } else {
-        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs\n";
+        std::cout << "[" << _job_id << "]" << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
+                  << " secs\n";
     }
 }
 //---------------------------------------------
@@ -124,9 +126,20 @@ void JobsList::addJob(Command *cmd, unsigned int pid, bool isStopped) {
     _vector_all_jobs.push_back(new_job);
 }
 
+void JobsList::removeJobById(int jobId) {
+    vector<JobEntry *>::iterator it = _vector_all_jobs.begin();
+    for (auto job: _vector_all_jobs) {
+        if (job->_job_id == jobId) {
+            _vector_all_jobs.erase(it);
+        }
+        it++;
+    }
+    UpdateMaxJob();
+}
+
 void JobsList::killAllJobs() {
     for (auto &job: _vector_all_jobs) {
-        //    removeJobById(job->_job_id); TODO: add this line after implement removeJobById.
+        removeJobById(job->_job_id);
         kill(job->_pid, SIGKILL);
     }
 }
@@ -140,6 +153,18 @@ JobsList::JobEntry *JobsList::getJobById(int jobId) {
     return NULL; // not found any job with this id
 }
 
+void JobsList::UpdateMaxJob() {
+    unsigned int current_bigger_job_id = 0;
+    for (auto job: _vector_all_jobs) {
+        if (job->_job_id > current_bigger_job_id) {
+            current_bigger_job_id = job->_job_id;
+        }
+    }
+    if (_list_max_job_number > current_bigger_job_id) {
+        _list_max_job_number = current_bigger_job_id;
+    }
+}
+
 void JobsList::removeFinishedJobs() {
     // this should remove all jobs that were done by now from the vector
     // and update the new highest number in the
@@ -150,15 +175,7 @@ void JobsList::removeFinishedJobs() {
         }
         it++;
     }
-    unsigned int current_bigger_job_id = 0;
-    for (auto job: _vector_all_jobs) {
-        if (job->_job_id > current_bigger_job_id) {
-            current_bigger_job_id = job->_job_id;
-        }
-    }
-    if (_list_max_job_number > current_bigger_job_id) {
-        _list_max_job_number = current_bigger_job_id;
-    }
+    UpdateMaxJob();
 }
 
 void JobsList::printJobsList() {
@@ -263,6 +280,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ChangeDirCommand(cmd_line, &this->_old_pwd);
     } else if ((firstWord.compare("jobs") == EQUALS) || (firstWord.compare("jobs&") == EQUALS)) {
         return new JobsCommand(cmd_line, this->_jobs_list);
+    } else if ((firstWord.compare("fg") == EQUALS) || (firstWord.compare("fg&") == EQUALS)) {
+        return new ForegroundCommand(cmd_line, this->_jobs_list);
     } else {
         return new ExternalCommand(cmd_line);
     }
@@ -316,6 +335,8 @@ void ExternalCommand::execute() {
     }
 }
 
+//-----------------Jobs-------------------
+
 JobsCommand::JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
     _job_list = jobs;
 }
@@ -323,3 +344,48 @@ JobsCommand::JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(
 void JobsCommand::execute() {
     _job_list->printJobsList();
 }
+
+
+ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
+    //fg command prints the command line of that job along with its pid (as can be seen in the
+    //example)
+    const char *job_id_string;
+    _job_list = jobs;
+    //If the job-id
+    //argument is not specified, then the job with the maximal job id in the jobs list should be
+    //selected to be brought to the foreground.
+    if (number_of_args == 1) { //default to resume if not specified
+        _job_id_to_fg = _job_list->_list_max_job_number;
+    } else {
+        job_id_string = _args[1];
+        _job_id_to_fg = static_cast<unsigned int>(*job_id_string);
+
+    }
+    _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
+    //If job-id was specified with a job id that does not exist, then the following error
+    //message should be reported:
+    //smash error: fg: job-id <job-id> does not exist
+    if (_job_entry_to_fg == NULL) {
+        //string = "fg: job-id " << job_id_string << " does not exist";
+        //perror("fg: job-id " << job_id_string << " does not exist")
+    }
+}
+
+void ForegroundCommand::execute() {
+    // fg command prints the command line of that job along with its pid
+    std::cout << _original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
+    //and then sends to the required job SIGCONT signal and waits for it (hint:
+    //waitpid), which in effect will bring the requested process to run in the foreground.
+
+    kill(_job_entry_to_fg->_pid, SIGCONT);
+    if (waitpid(_job_entry_to_fg->_pid, NULL, WUNTRACED) < 0) {
+        perror("smash error: waitpid failed"); //TODO: yes?
+    }
+
+    //After bringing the job to the foreground, it should be removed from the
+    //jobs list.
+    _job_list->removeJobById(_job_id_to_fg);
+
+}
+
+//----------------------------------------
