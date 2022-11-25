@@ -88,6 +88,11 @@ void _removeBackgroundSign(char *cmd_line) {
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+bool IsArgumentANumer(char *arg) {
+    return true;// TODO: check if the input contains latter's
+}
+
+
 //-----------------JobEntry-------------------
 
 JobsList::JobEntry::JobEntry(Command *command, unsigned int job_id, unsigned int pid, bool is_stopped)
@@ -113,6 +118,10 @@ void JobsList::JobEntry::print() {
         std::cout << "[" << _job_id << "]" << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
                   << " secs\n";
     }
+}
+
+bool JobsList::JobEntry::isStoppedJob() {
+    return this->_is_stopped;
 }
 //---------------------------------------------
 
@@ -186,6 +195,18 @@ void JobsList::printJobsList() {
     for (auto job: _vector_all_jobs) {
         job->print();
     }
+}
+
+JobsList::JobEntry *JobsList::getLastStoppedJob() {
+    unsigned int highest_job_num_stooped = 0;
+    for (auto job: _vector_all_jobs) {
+        if (job->isStoppedJob()) {
+            if (highest_job_num_stooped < job->_job_id) {
+                highest_job_num_stooped = job->_job_id;
+            }
+        }
+    }
+    return getJobById(highest_job_num_stooped);
 }
 
 bool isInTheBackground(JobsList::JobEntry *job) {
@@ -290,6 +311,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new JobsCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("fg") == EQUALS) || (firstWord.compare("fg&") == EQUALS)) {
         return new ForegroundCommand(cmd_line, this->_jobs_list);
+    } else if ((firstWord.compare("bg") == EQUALS) || (firstWord.compare("bg&") == EQUALS)) {
+        return new BackgroundCommand(cmd_line, this->_jobs_list);
     } else {
         return new ExternalCommand(cmd_line);
     }
@@ -355,7 +378,7 @@ void JobsCommand::execute() {
 
 
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
-    if (number_of_args != 1 && number_of_args != 2) {
+    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !IsArgumentANumer(_args[1]))) {
         std::cout << "smash error: fg: invalid arguments\n";
         error_command_dont_execute = true;
         return;
@@ -392,6 +415,48 @@ void ForegroundCommand::execute() {
         perror("smash error: waitpid failed");
     }
     _job_list->removeJobById(_job_id_to_fg);
+}
+
+BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
+    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !IsArgumentANumer(_args[1]))) {
+        std::cout << "smash error: bg: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
+    const char *job_id_string;
+    _job_list = jobs;
+    if (number_of_args == 1) { //default to resume if not specified
+        _job_entry_to_bg = _job_list->getLastStoppedJob();
+        if (_job_entry_to_bg == NULL) {
+            cout << "smash error: bg: there is no stopped jobs to resume\n";
+            error_command_dont_execute = true;
+            return;
+        }
+        _job_id_to_bg = _job_entry_to_bg->_job_id;
+    } else {
+        job_id_string = _args[1];
+        _job_id_to_bg = atoi(job_id_string);
+        _job_entry_to_bg = jobs->getJobById(_job_id_to_bg);
+        if (_job_entry_to_bg == NULL) {
+            std::cout << "smash error: bg: job-id " << job_id_string << " does not exist\n";
+            error_command_dont_execute = true;
+            return;
+        }
+        if (!_job_entry_to_bg->isStoppedJob()) {
+            std::cout << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
+            error_command_dont_execute = true;
+            return;
+        }
+    }
+}
+
+void BackgroundCommand::execute() {
+    if (error_command_dont_execute) { return; }
+    std::cout << _job_entry_to_bg->_command->_original_cmd_line << " : " << _job_entry_to_bg->_pid << "\n";
+    if (kill(_job_entry_to_bg->_pid, SIGCONT) == -1) {
+        perror("“smash error: kill failed”");
+    }
+    _job_entry_to_bg->ReactivateJobEntry();
 }
 
 //----------------------------------------
