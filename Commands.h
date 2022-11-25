@@ -12,10 +12,12 @@ class Command {
 protected:
 
     std::string _cmd_line;
-    std::string _original_cmd_line;
+
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
 public:
+    std::string _original_cmd_line;
+
     Command(const char *cmd_line);
 
     bool is_background_command = false;
@@ -156,7 +158,7 @@ public:
 public:
     std::vector<JobEntry *> _vector_all_jobs;
 
-    unsigned int _list_max_job_number = 0; // will be increased every time a job is created
+    unsigned int _list_max_job_number = 0; // when 0 the vector is empty
     JobsList() {};
 
     ~JobsList() {};
@@ -169,10 +171,13 @@ public:
     void removeFinishedJobs();
 
     JobEntry *getJobById(int jobId); //return null when not found
-    void removeJobById(int jobId); // wait, is this to kill or just to remove?
+    void removeJobById(int jobId);
+
     JobEntry *getLastJob(int *lastJobId); //TODO: Oren - wait
-    JobEntry *getLastStoppedJob(int *jobId); //TODO: RONY - wait
+    JobEntry *getLastStoppedJob(int *jobId); //TODO: RONY - wait dont think I need this.
     bool isInTheBackground(JobEntry *job);
+
+    void UpdateMaxJob();
 };
 
 //jobs
@@ -189,8 +194,11 @@ public:
 
 //fg
 class ForegroundCommand : public BuiltInCommand {
-    // TODO: Add your data members
 public:
+    JobsList *_job_list;
+    JobsList::JobEntry *_job_entry_to_fg;
+    unsigned int _job_id_to_fg;
+
     ForegroundCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~ForegroundCommand() {}
