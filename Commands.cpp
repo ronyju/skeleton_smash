@@ -148,10 +148,7 @@ void JobsList::killAllJobs() {
 }
 
 JobsList::JobEntry *JobsList::getJobById(int jobId) {
-    cout << "getJobById ";//temp
     for (auto &job: _vector_all_jobs) {
-        cout << "getJobById loop\n"; //temp
-        cout << "job->_job_i = " << job->_job_id << "jobId = " << jobId << "\n"; //temp
         if (job->_job_id == jobId) {
             return job;
         }
@@ -366,24 +363,19 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
     const char *job_id_string;
     _job_list = jobs;
     if (number_of_args == 1) { //default to resume if not specified
-        cout << "number_of_args == 1\n"; // temp
         _job_id_to_fg = _job_list->_list_max_job_number;
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
         if (_job_entry_to_fg == NULL) {
-            std::cout << "smash error: fg: job-id " << job_id_string << " does not exist\n";
+            cout << "smash error: fg: jobs list is empty\n";
             error_command_dont_execute = true;
             return;
         }
     } else {
-        for (int i = 0; i < number_of_args; i++) { //temp
-            cout << _args[i] << "\n"; //temp
-        } //temp
         job_id_string = _args[1];
         _job_id_to_fg = atoi(job_id_string);
-        cout << "job_id_string - " << job_id_string << "\n"; //temp
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
         if (_job_entry_to_fg == NULL) {
-            cout << "smash error: fg: jobs list is empty\n"; // TODO: why it prints this when the job id doesnt exist??
+            std::cout << "smash error: fg: job-id " << job_id_string << " does not exist\n";
             error_command_dont_execute = true;
             return;
         }
@@ -392,7 +384,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
 
 void ForegroundCommand::execute() {
     if (error_command_dont_execute) { return; }
-    std::cout << _original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
+    std::cout << _job_entry_to_fg->_command->_original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
     if (kill(_job_entry_to_fg->_pid, SIGCONT) == -1) {
         perror("“smash error: kill failed”");
     }
