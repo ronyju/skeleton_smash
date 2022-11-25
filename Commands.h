@@ -156,17 +156,18 @@ public:
 public:
     std::vector<JobEntry *> _vector_all_jobs;
 
-    unsigned int _list_next_job_number = 1; // will be increased every time a job is created
+    unsigned int _list_max_job_number = 0; // will be increased every time a job is created
     JobsList() {};
 
     ~JobsList() {};
 
     void addJob(Command *cmd, unsigned int pid, bool isStopped = false);
 
-    void printJobsList(); //TODO : Oren (check if delete)
+    void printJobsList(); //TODO : RONY (check if delete)
     void killAllJobs();
 
-    void removeFinishedJobs(); //TODO: Oren -wait
+    void removeFinishedJobs();
+
     JobEntry *getJobById(int jobId); //return null when not found
     void removeJobById(int jobId); // wait, is this to kill or just to remove?
     JobEntry *getLastJob(int *lastJobId); //TODO: Oren - wait

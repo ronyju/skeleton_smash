@@ -4,12 +4,15 @@
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
+#include <ctime>
 #include <iomanip>
 #include "Commands.h"
 
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
+
+void removeDeadJobs();
 
 #if 0
 #define FUNC_ENTRY()  \
@@ -24,7 +27,14 @@ const std::string WHITESPACE = " \n\r\t\f\v";
 #define EQUALS 0
 #define OLDPWD_NOT_SET NULL
 #define SIGKILL 9
+#define PROCESS_EXISTS 0
 #endif
+
+bool is_process_exist(unsigned int process_pid) {
+    int is_still_alive = waitpid(process_pid, nullptr, WNOHANG);
+    if (is_still_alive != 0) { return false; }
+    return true;
+}
 
 string _ltrim(const std::string &s) {
     size_t start = s.find_first_not_of(WHITESPACE);
@@ -82,7 +92,7 @@ void _removeBackgroundSign(char *cmd_line) {
 
 JobsList::JobEntry::JobEntry(Command *command, unsigned int job_id, unsigned int pid, bool is_stopped)
         : _job_id(job_id), _command(command), _is_stopped(is_stopped), _pid(pid) {
-    time_t _job_inserted_time = time(NULL);
+    _job_inserted_time = time(NULL); // why is it always 0 ??
 }
 
 void JobsList::JobEntry::StopJobEntry() {
@@ -109,8 +119,9 @@ void JobsList::JobEntry::print() {
 //-----------------JobsList-------------------
 
 void JobsList::addJob(Command *cmd, unsigned int pid, bool isStopped) {
-    JobEntry *new_job = new JobEntry(cmd, _list_next_job_number, pid, isStopped);
-    _list_next_job_number++;
+    removeFinishedJobs();
+    _list_max_job_number++;
+    JobEntry *new_job = new JobEntry(cmd, _list_max_job_number, pid, isStopped);
     _vector_all_jobs.push_back(new_job);
 }
 
@@ -128,6 +139,34 @@ JobsList::JobEntry *JobsList::getJobById(int jobId) {
         }
     }
     return NULL; // not found any job with this id
+}
+
+void JobsList::removeFinishedJobs() {
+    // this should remove all jobs that were done by now from the vector
+    // and update the new highest number in the
+    vector<JobEntry *>::iterator it = _vector_all_jobs.begin();
+    for (auto job: _vector_all_jobs) {
+        if (!(is_process_exist(job->_pid))) {
+            _vector_all_jobs.erase(it);
+        }
+        it++;
+    }
+    unsigned int current_bigger_job_id = 0;
+    for (auto job: _vector_all_jobs) {
+        if (job->_job_id > current_bigger_job_id) {
+            current_bigger_job_id = job->_job_id;
+        }
+    }
+    if (_list_max_job_number > current_bigger_job_id) {
+        _list_max_job_number = current_bigger_job_id;
+    }
+}
+
+void JobsList::printJobsList() {
+    removeFinishedJobs();
+    for (auto job: _vector_all_jobs) {
+        job->print();
+    }
 }
 
 bool isInTheBackground(JobsList::JobEntry *job) {
