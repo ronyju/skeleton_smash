@@ -259,6 +259,8 @@ private:
     // TODO: Add your data members
     std::string shell_prompt = "smash";
 public:
+    pid_t currentPidInFg = 0;
+    Command *cmd;
     JobsList *_jobs_list;
     char *_old_pwd = OLDPWD_NOT_SET; // will be set by cd
     Command *CreateCommand(const char *cmd_line);
@@ -282,6 +284,7 @@ public:
     std::string GetPrompt();
 
     void SetPrompt(const char *);
+
 };
 
 #endif //SMASH_COMMAND_H_

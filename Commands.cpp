@@ -233,7 +233,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 void SmallShell::executeCommand(const char *cmd_line) {
     // TODO: Add your implementation here
     // for example:
-    Command *cmd = CreateCommand(cmd_line);
+    cmd = CreateCommand(cmd_line);
     cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
@@ -252,7 +252,7 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 
 void ExternalCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
-    int son_pid = fork();
+    pid_t son_pid = fork();
     if (son_pid == -1) {
         perror("smash error: fork failed");
         return;
