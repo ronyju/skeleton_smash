@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <ctime>
 #include <iomanip>
+#include <fcntl.h>
 #include "Commands.h"
 
 using namespace std;
@@ -27,7 +28,8 @@ void removeDeadJobs();
 #define EQUALS 0
 #define OLDPWD_NOT_SET NULL
 #define SIGKILL 9
-#define PROCESS_EXISTS 0
+#define PERMISSIONS 0655
+#define STDOUT_FD 1
 #endif
 
 bool is_process_exist(unsigned int process_pid) {
@@ -111,10 +113,12 @@ void JobsList::JobEntry::ReactivateJobEntry() {
 void JobsList::JobEntry::print() {
     double seconds_elapsed = difftime(time(NULL), _job_inserted_time);
     if (_is_stopped) {
-        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs"
+        std::cout << "[" << _job_id << "]" << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
+                  << " secs"
                   << " (stopped)\n";
     } else {
-        std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs\n";
+        std::cout << "[" << _job_id << "]" << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
+                  << " secs\n";
     }
 }
 
@@ -254,7 +258,7 @@ void ShowPidCommand::execute() {
     if (pid == -1) {
         perror("“smash error: getpid failed”");
     }
-    std::cout << (pid) << "\n";
+    std::cout << "smash pid is " << (pid) << "\n";
 }
 
 //cd
@@ -298,7 +302,11 @@ SmallShell::~SmallShell() {
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-    if ((firstWord.compare("pwd") == EQUALS) || (firstWord.compare("pwd&") == EQUALS)) {
+    if (cmd_s.find(">>") != string::npos) {
+        return new RedirectionCommand(cmd_line, APPEND);
+    } else if (cmd_s.find_first_of('>') != string::npos) {
+        return new RedirectionCommand(cmd_line, OVERWRITE);
+    } else if ((firstWord.compare("pwd") == EQUALS) || (firstWord.compare("pwd&") == EQUALS)) {
         return new GetCurrDirCommand(cmd_line);
     } else if ((firstWord.compare("showpid") == EQUALS) || (firstWord.compare("showpid&") == EQUALS)) {
         return new ShowPidCommand(cmd_line);
@@ -314,14 +322,11 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new BackgroundCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("quit") == EQUALS) || (firstWord.compare("quit&") == EQUALS)) {
         return new QuitCommand(cmd_line, this->_jobs_list);
-    } else if (cmd_s.find("|&") != string::npos) {
+    } else if (cmd_s.find("|&") !=
+               string::npos) { //TODO: Oren is it not a bug? shouldn't it by before all the simple optiones ?
         return new PipeCommand(cmd_line, STDERR);
     } else if (cmd_s.find_first_of('|') != string::npos) {
         return new PipeCommand(cmd_line, STDOUT);
-    } else if (cmd_s.find(">>") != string::npos) {
-        //return new RedirectionCommand(cmd_line, APPEND);
-    } else if (cmd_s.find_first_of('>') != string::npos) {
-        //return new RedirectionCommand(cmd_line, DONT_APPEND);
     } else {
         return new ExternalCommand(cmd_line);
     }
@@ -375,7 +380,7 @@ void ExternalCommand::execute() {
     }
 }
 
-//-----------------Jobs-------------------
+//-----------------Jobs-----------------------------------------------------------
 
 JobsCommand::JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
     _job_list = jobs;
@@ -474,7 +479,7 @@ void BackgroundCommand::execute() {
     _job_entry_to_bg->ReactivateJobEntry();
 }
 
-//----------------------------------------
+//----------------------------------------------------------------------------------
 QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
     _job_list = jobs;
 }
@@ -510,8 +515,8 @@ void PipeCommand::execute() {
     string first_command;
     string second_command;
     if (_is_stderr) {
-        first_command = _cmd_line.substr(0, _cmd_line.find_first_of('|&'));
-        second_command = _cmd_line.substr(_cmd_line.find_first_of('|&') + 2, _cmd_line.size());
+        first_command = _cmd_line.substr(0, _cmd_line.find_first_of("|&"));
+        second_command = _cmd_line.substr(_cmd_line.find_first_of("|&") + 2, _cmd_line.size());
         first_command = _trim(first_command);
         second_command = _trim(second_command);
     } else {
@@ -555,4 +560,61 @@ void PipeCommand::execute() {
 }
 
 
+bool RedirectionCommand::isFileExists(const char *file_path) {
+    int result = open(file_path, 0);
+    if (result == -1) { return false; }
+    close(result);
+    return true;
+}
 
+
+// -------------------------- RedirectionCommand ----------------------------------
+
+RedirectionCommand::RedirectionCommand(const char *cmd_line, file_write_approche approche) : Command(cmd_line) {
+    _approche = approche;
+    if (_approche == OVERWRITE) {
+        _command = _cmd_line.substr(0, _cmd_line.find_first_of(">"));
+        _file_path = _cmd_line.substr(_cmd_line.find_first_of(">") + 1, _cmd_line.size());
+    } else {
+        _command = _cmd_line.substr(0, _cmd_line.find_first_of(">>"));
+        _file_path = _cmd_line.substr(_cmd_line.find_first_of(">>") + 2, _cmd_line.size());
+    }
+    _command = _trim(_command);
+    _file_path = _trim(_file_path);
+}
+
+void RedirectionCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
+    int my_file_fd;
+    if (_approche == APPEND) {
+        my_file_fd = open(_file_path.c_str(), O_RDWR | O_CREAT | O_APPEND, PERMISSIONS);
+    } else { // OVERWRITE
+        my_file_fd = open(_file_path.c_str(), O_RDWR | O_CREAT | O_TRUNC, PERMISSIONS);
+    }
+
+    // overwrite stdout with my file, and restore it for later
+    if ((my_file_fd) == -1) {
+        perror("smash error: open failed");
+    }
+    int stdout_restore_fd = dup(STDOUT_FD);
+    if (stdout_restore_fd == -1) {
+        perror("smash error: dup failed");
+    }
+    if (dup2(my_file_fd, STDOUT_FD) == -1) {
+        perror("smash error: dup2 failed");
+    }
+    if (close(my_file_fd) == -1) {
+        perror("smash error: close failed");
+    }
+
+    smash.executeCommand(_command.c_str());
+
+    // bring back stdout to its place and close the file
+    if (dup2(stdout_restore_fd, STDOUT_FD) == -1) {
+        perror("smash error: dup2 failed");
+    }
+    if (close(stdout_restore_fd) == -1) {
+        perror("smash error: close failed");
+    }
+}
+//--------------------------------------------------------------------------------------------------

@@ -8,8 +8,11 @@
 #define COMMAND_MAX_ARGS (20)
 #define STDOUT  false
 #define STDERR  true
-#define APPEND true
-#define DONT_APPEND false
+
+enum file_write_approche {
+    APPEND, OVERWRITE
+};
+
 
 class Command {
 // TODO: Add your data members
@@ -68,13 +71,18 @@ public:
 };
 
 class RedirectionCommand : public Command {
-    // TODO: Add your data members
+    file_write_approche _approche;
+    std::string _command;
+    std::string _file_path;
 public:
-    explicit RedirectionCommand(const char *cmd_line);
+    RedirectionCommand(const char *cmd_line, file_write_approche approche);
 
     virtual ~RedirectionCommand() {}
 
     void execute() override;
+
+    bool isFileExists(const char *file_path);
+
     //void prepare() override;
     //void cleanup() override;
 };
