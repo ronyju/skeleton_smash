@@ -22,10 +22,11 @@ protected:
 
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
+    bool _is_not_allowed_in_background = false;
 public:
     std::string _original_cmd_line;
 
-    Command(const char *cmd_line);
+    Command(const char *cmd_line, bool not_allowed_in_background = false);
 
     bool is_background_command = false;
 
@@ -41,14 +42,14 @@ public:
 
 class BuiltInCommand : public Command {
 public:
-    BuiltInCommand(const char *cmd_line);
+    BuiltInCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     virtual ~BuiltInCommand() {}
 };
 
 class ExternalCommand : public Command {
 public:
-    ExternalCommand(const char *cmd_line);
+    ExternalCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     virtual ~ExternalCommand() {}
 
@@ -238,7 +239,7 @@ public:
     void execute() override;
 };
 
-//option 7
+//option 7 TODO: add is_not_allwed_on_backgroung?
 class TimeoutCommand : public BuiltInCommand {
 /* Optional */
 // TODO: Add your data members
@@ -250,7 +251,7 @@ public:
     void execute() override;
 };
 
-//option 7
+//option 7 TODO: add is_not_allwed_on_backgroung?
 class FareCommand : public BuiltInCommand {
     /* Optional */
     // TODO: Add your data members
@@ -262,7 +263,7 @@ public:
     void execute() override;
 };
 
-//option 5
+//option 5 TODO: add is_not_allwed_on_backgroung?
 class SetcoreCommand : public BuiltInCommand {
     /* Optional */
     // TODO: Add your data members
@@ -274,7 +275,7 @@ public:
     void execute() override;
 };
 
-//bunos 5
+//bunos 5 TODO: add is_not_allwed_on_backgroung?
 class KillCommand : public BuiltInCommand {
     /* Bonus */
     // TODO: Add your data members
@@ -295,7 +296,7 @@ public:
     Command *cmd;
     JobsList *_jobs_list;
     char *_old_pwd = OLDPWD_NOT_SET; // will be set by cd
-    Command *CreateCommand(const char *cmd_line);
+    Command *CreateCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     SmallShell();
 
@@ -310,7 +311,7 @@ public:
 
     ~SmallShell();
 
-    void executeCommand(const char *cmd_line);
+    void executeCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     // TODO: add extra methods as needed
     std::string GetPrompt();

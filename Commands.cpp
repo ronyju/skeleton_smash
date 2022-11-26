@@ -218,7 +218,7 @@ bool isInTheBackground(JobsList::JobEntry *job) {
 
 //-----------------Command-------------------
 
-Command::Command(const char *cmd_line) {
+Command::Command(const char *cmd_line, bool not_allowed_in_background) {
     is_background_command = _isBackgroundComamnd(cmd_line);
     string cmd_trimmed = _trim(string(cmd_line));
     _original_cmd_line = cmd_trimmed;
@@ -227,7 +227,7 @@ Command::Command(const char *cmd_line) {
     _cmd_line = cmd_trimmed;
 }
 
-BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line) {}
+BuiltInCommand::BuiltInCommand(const char *cmd_line, bool not_allowed_in_background) : Command(cmd_line, true) {}
 
 
 //chprompt
@@ -299,7 +299,7 @@ SmallShell::~SmallShell() {
 /*
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
-Command *SmallShell::CreateCommand(const char *cmd_line) {
+Command *SmallShell::CreateCommand(const char *cmd_line, bool not_allowed_in_background) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
     // redirect:
@@ -337,16 +337,16 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
         // External:
     else {
-        return new ExternalCommand(cmd_line);
+        return new ExternalCommand(cmd_line, not_allowed_in_background);
     }
 
     return nullptr;
 }
 
-void SmallShell::executeCommand(const char *cmd_line) {
+void SmallShell::executeCommand(const char *cmd_line, bool not_allowed_in_background) {
     // TODO: Add your implementation here
     // for example:
-    cmd = CreateCommand(cmd_line);
+    cmd = CreateCommand(cmd_line, not_allowed_in_background);
     if (cmd->error_command_dont_execute != true) { cmd->execute(); }
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
@@ -359,7 +359,8 @@ void SmallShell::SetPrompt(const char *newPromptName) {
     shell_prompt = newPromptName;
 }
 
-ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
+ExternalCommand::ExternalCommand(const char *cmd_line, bool not_allowed_in_background) : Command(cmd_line,
+                                                                                                 not_allowed_in_background) {
     is_bash_problem = IsBashCommand();
 }
 
@@ -378,7 +379,7 @@ void ExternalCommand::execute() {
             execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL); //TODO: all bash?
         }
     }
-    if (is_background_command) { // if father and bg
+    if (is_background_command && !_is_not_allowed_in_background) { // if father and bg
         smash._jobs_list->addJob(this, son_pid);
     } else { // if father and not bg
         smash.currentPidInFg = son_pid;
@@ -544,7 +545,7 @@ void PipeCommand::execute() {
         dup2(fd[1], _is_stderr ? 2 : 1); //TODO: add err option dup2(fd[1], 2);
         close(fd[0]);
         close(fd[1]);
-        smash.executeCommand(first_command.c_str());
+        smash.executeCommand(first_command.c_str(), true);
         if (kill(getpid(), SIGKILL) == -1) perror("smash error: kill failed");
         return;
     }
@@ -557,7 +558,7 @@ void PipeCommand::execute() {
         dup2(fd[0], 0);
         close(fd[0]);
         close(fd[1]);
-        smash.executeCommand(second_command.c_str());
+        smash.executeCommand(second_command.c_str(), true);
         if (kill(getpid(), SIGKILL) == -1) perror("smash error: kill failed");
         return;
 
@@ -616,7 +617,7 @@ void RedirectionCommand::execute() {
         perror("smash error: close failed");
     }
 
-    smash.executeCommand(_command.c_str());
+    smash.executeCommand(_command.c_str(), true);
 
     // bring back stdout to its place and close the file
     if (dup2(stdout_restore_fd, STDOUT_FD) == -1) {
