@@ -6,6 +6,10 @@
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+#define STDOUT  false
+#define STDERR  true
+#define APPEND true
+#define DONT_APPEND false
 
 class Command {
 // TODO: Add your data members
@@ -54,8 +58,9 @@ private:
 
 class PipeCommand : public Command {
     // TODO: Add your data members
+    bool _is_stderr = false;
 public:
-    PipeCommand(const char *cmd_line);
+    PipeCommand(const char *cmd_line, bool is_stderr);
 
     virtual ~PipeCommand() {}
 

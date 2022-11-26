@@ -137,7 +137,6 @@ void JobsList::removeJobById(int jobId) {
     vector<JobEntry *>::iterator it = _vector_all_jobs.begin();
     for (auto job: _vector_all_jobs) {
         if (job->_job_id == jobId) {
-            job->_is_stopped = false; //TODO: make sure with rony this is needed
             _vector_all_jobs.erase(it);
         }
         it++;
@@ -315,6 +314,14 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new BackgroundCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("quit") == EQUALS) || (firstWord.compare("quit&") == EQUALS)) {
         return new QuitCommand(cmd_line, this->_jobs_list);
+    } else if (cmd_s.find("|&") != string::npos) {
+        return new PipeCommand(cmd_line, STDERR);
+    } else if (cmd_s.find_first_of('|') != string::npos) {
+        return new PipeCommand(cmd_line, STDOUT);
+    } else if (cmd_s.find(">>") != string::npos) {
+        //return new RedirectionCommand(cmd_line, APPEND);
+    } else if (cmd_s.find_first_of('>') != string::npos) {
+        //return new RedirectionCommand(cmd_line, DONT_APPEND);
     } else {
         return new ExternalCommand(cmd_line);
     }
@@ -411,7 +418,6 @@ void ForegroundCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     if (error_command_dont_execute) { return; }
     std::cout << _job_entry_to_fg->_command->_original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
-    _job_entry_to_fg->_is_stopped = false;//TODO: rony?? is it good here or we should put it inside removeJobById
     if (kill(_job_entry_to_fg->_pid, SIGCONT) == -1) {
         perror("“smash error: kill failed”");
     }
@@ -492,3 +498,61 @@ void QuitCommand::execute() {
     }
 //TODO: delete killed comment printed
 }
+
+PipeCommand::PipeCommand(const char *cmd_line, bool is_stderr) : Command(cmd_line), _is_stderr(is_stderr) {}
+
+void PipeCommand::execute() {
+    int fd[2];
+    if (pipe(fd) == -1) {
+        perror("smash error: pipe failed");
+        return;
+    }
+    string first_command;
+    string second_command;
+    if (_is_stderr) {
+        first_command = _cmd_line.substr(0, _cmd_line.find_first_of('|&'));
+        second_command = _cmd_line.substr(_cmd_line.find_first_of('|&') + 2, _cmd_line.size());
+        first_command = _trim(first_command);
+        second_command = _trim(second_command);
+    } else {
+        first_command = _cmd_line.substr(0, _cmd_line.find_first_of('|'));
+        second_command = _cmd_line.substr(_cmd_line.find_first_of('|') + 1, _cmd_line.size());
+        first_command = _trim(first_command);
+        second_command = _trim(second_command);
+    }
+    pid_t first_son_pid = fork();
+    if (first_son_pid == -1) {
+        perror("smash error: fork failed");
+        return;
+    }
+    if (first_son_pid == 0) { //first son
+        SmallShell &smash = SmallShell::getInstance();
+        dup2(fd[1], _is_stderr ? 2 : 1); //TODO: add err option dup2(fd[1], 2);
+        close(fd[0]);
+        close(fd[1]);
+        smash.executeCommand(first_command.c_str());
+        if (kill(getpid(), SIGKILL) == -1) perror("smash error: kill failed");
+        return;
+    }
+    pid_t second_son_pid = fork();
+    if (second_son_pid == -1) {
+        perror("smash error: fork failed");
+    }
+    if (second_son_pid == 0) { //second son
+        SmallShell &smash = SmallShell::getInstance();
+        dup2(fd[0], 0);
+        close(fd[0]);
+        close(fd[1]);
+        smash.executeCommand(second_command.c_str());
+        if (kill(getpid(), SIGKILL) == -1) perror("smash error: kill failed");
+        return;
+
+    }
+    close(fd[0]);
+    close(fd[1]);
+    if (waitpid(first_son_pid, nullptr, 0) == -1) perror("smash error: waitpid failed");
+    if (waitpid(second_son_pid, nullptr, 0) == -1) perror("smash error: waitpid failed");
+}
+
+
+
