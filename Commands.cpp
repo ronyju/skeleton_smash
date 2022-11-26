@@ -137,6 +137,7 @@ void JobsList::removeJobById(int jobId) {
     vector<JobEntry *>::iterator it = _vector_all_jobs.begin();
     for (auto job: _vector_all_jobs) {
         if (job->_job_id == jobId) {
+            job->_is_stopped = false; //TODO: make sure with rony this is needed
             _vector_all_jobs.erase(it);
         }
         it++;
@@ -262,7 +263,8 @@ ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : Buil
     _old_pwd = plastPwd;
 }
 
-void ChangeDirCommand::execute() {
+void
+ChangeDirCommand::execute() { //TODO: if cd gets no argument it needs to ignore? now it dose Segmentation fault (core dumped) and exit smash
     if (number_of_args > 2) {
         std::cout << "smash error: cd: too many arguments\n";
         return;
@@ -406,15 +408,20 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
 }
 
 void ForegroundCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
     if (error_command_dont_execute) { return; }
     std::cout << _job_entry_to_fg->_command->_original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
+    _job_entry_to_fg->_is_stopped = false;//TODO: rony?? is it good here or we should put it inside removeJobById
     if (kill(_job_entry_to_fg->_pid, SIGCONT) == -1) {
         perror("“smash error: kill failed”");
     }
+    smash.cmd = _job_entry_to_fg->_command;
+    smash.currentPidInFg = _job_entry_to_fg->_pid;
     if (waitpid(_job_entry_to_fg->_pid, NULL, WUNTRACED) < 0) {
         perror("smash error: waitpid failed");
     }
     _job_list->removeJobById(_job_id_to_fg);
+    smash.currentPidInFg = 0;
 }
 
 BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
@@ -451,11 +458,13 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : Bui
 }
 
 void BackgroundCommand::execute() {
+    SmallShell &smash = SmallShell::getInstance();
     if (error_command_dont_execute) { return; }
     std::cout << _job_entry_to_bg->_command->_original_cmd_line << " : " << _job_entry_to_bg->_pid << "\n";
     if (kill(_job_entry_to_bg->_pid, SIGCONT) == -1) {
         perror("“smash error: kill failed”");
     }
+    smash.currentPidInFg = 0; //update that no command is running now in fg
     _job_entry_to_bg->ReactivateJobEntry();
 }
 
