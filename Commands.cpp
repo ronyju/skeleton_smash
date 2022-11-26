@@ -364,9 +364,9 @@ void ExternalCommand::execute() {
             execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL); //TODO: all bash?
         }
     }
-    if (is_background_command) {
+    if (is_background_command) { // if father and bg
         smash._jobs_list->addJob(this, son_pid);
-    } else {
+    } else { // if father and not bg
         smash.currentPidInFg = son_pid;
         if (waitpid(son_pid, NULL, WUNTRACED) < 0) {
             perror("smash error: waitpid failed");
