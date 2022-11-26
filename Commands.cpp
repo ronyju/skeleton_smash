@@ -302,11 +302,22 @@ SmallShell::~SmallShell() {
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+    // redirect:
     if (cmd_s.find(">>") != string::npos) {
         return new RedirectionCommand(cmd_line, APPEND);
     } else if (cmd_s.find_first_of('>') != string::npos) {
         return new RedirectionCommand(cmd_line, OVERWRITE);
-    } else if ((firstWord.compare("pwd") == EQUALS) || (firstWord.compare("pwd&") == EQUALS)) {
+    }
+
+        // pipes:
+    else if (cmd_s.find("|&") != string::npos) {
+        return new PipeCommand(cmd_line, STDERR);
+    } else if (cmd_s.find_first_of('|') != string::npos) {
+        return new PipeCommand(cmd_line, STDOUT);
+    }
+
+        // Built in:
+    else if ((firstWord.compare("pwd") == EQUALS) || (firstWord.compare("pwd&") == EQUALS)) {
         return new GetCurrDirCommand(cmd_line);
     } else if ((firstWord.compare("showpid") == EQUALS) || (firstWord.compare("showpid&") == EQUALS)) {
         return new ShowPidCommand(cmd_line);
@@ -322,12 +333,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new BackgroundCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("quit") == EQUALS) || (firstWord.compare("quit&") == EQUALS)) {
         return new QuitCommand(cmd_line, this->_jobs_list);
-    } else if (cmd_s.find("|&") !=
-               string::npos) { //TODO: Oren is it not a bug? shouldn't it by before all the simple optiones ?
-        return new PipeCommand(cmd_line, STDERR);
-    } else if (cmd_s.find_first_of('|') != string::npos) {
-        return new PipeCommand(cmd_line, STDOUT);
-    } else {
+    }
+
+        // External:
+    else {
         return new ExternalCommand(cmd_line);
     }
 
