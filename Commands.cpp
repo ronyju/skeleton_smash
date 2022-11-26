@@ -88,6 +88,11 @@ void _removeBackgroundSign(char *cmd_line) {
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+bool IsArgumentANumer(char *arg) {
+    return true;// TODO: check if the input contains latter's
+}
+
+
 //-----------------JobEntry-------------------
 
 JobsList::JobEntry::JobEntry(Command *command, unsigned int job_id, unsigned int pid, bool is_stopped)
@@ -111,6 +116,10 @@ void JobsList::JobEntry::print() {
     } else {
         std::cout << "[" << _job_id << "]" << _command << " : " << _pid << " " << seconds_elapsed << " secs\n";
     }
+}
+
+bool JobsList::JobEntry::isStoppedJob() {
+    return this->_is_stopped;
 }
 //---------------------------------------------
 
@@ -138,7 +147,10 @@ void JobsList::removeJobById(int jobId) {
 void JobsList::killAllJobs() {
     for (auto &job: _vector_all_jobs) {
         removeJobById(job->_job_id);
-        kill(job->_pid, SIGKILL);
+        if (kill(job->_pid, SIGKILL) == -1) {
+            perror("“smash error: kill failed”");
+        }
+
     }
 }
 
@@ -181,6 +193,18 @@ void JobsList::printJobsList() {
     for (auto job: _vector_all_jobs) {
         job->print();
     }
+}
+
+JobsList::JobEntry *JobsList::getLastStoppedJob() {
+    unsigned int highest_job_num_stooped = 0;
+    for (auto job: _vector_all_jobs) {
+        if (job->isStoppedJob()) {
+            if (highest_job_num_stooped < job->_job_id) {
+                highest_job_num_stooped = job->_job_id;
+            }
+        }
+    }
+    return getJobById(highest_job_num_stooped);
 }
 
 bool isInTheBackground(JobsList::JobEntry *job) {
@@ -227,6 +251,9 @@ ShowPidCommand::ShowPidCommand(const char *cmd_line)
 
 void ShowPidCommand::execute() {
     int pid = getpid();
+    if (pid == -1) {
+        perror("“smash error: getpid failed”");
+    }
     std::cout << (pid) << "\n";
 }
 
@@ -237,20 +264,22 @@ ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : Buil
 
 void ChangeDirCommand::execute() {
     if (number_of_args > 2) {
-        perror("smash error: cd: too many arguments");
+        std::cout << "smash error: cd: too many arguments\n";
         return;
     }
     char *path = _args[1]; // = second word in the command is the path
     if (strcmp(path, CD_TO_OLD_PWD) == EQUALS) {
         if (*_old_pwd == OLDPWD_NOT_SET) {
-            perror("smash error: cd: OLDPWD not set");
+            std::cout << "smash error: cd: OLDPWD not set\n";
             return;
         } else {
             path = *_old_pwd;
         }
     }
     *_old_pwd = getcwd(NULL, 0); // update the old_pwd to the current path
-    chdir(path);
+    if (chdir(path) == -1) {
+        perror("smash error: chdir failed");
+    }
 }
 //---------------------------------------------
 
@@ -278,6 +307,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new ChangeDirCommand(cmd_line, &this->_old_pwd);
     } else if ((firstWord.compare("jobs") == EQUALS) || (firstWord.compare("jobs&") == EQUALS)) {
         return new JobsCommand(cmd_line, this->_jobs_list);
+    } else if ((firstWord.compare("fg") == EQUALS) || (firstWord.compare("fg&") == EQUALS)) {
+        return new ForegroundCommand(cmd_line, this->_jobs_list);
+    } else if ((firstWord.compare("bg") == EQUALS) || (firstWord.compare("bg&") == EQUALS)) {
+        return new BackgroundCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("quit") == EQUALS) || (firstWord.compare("quit&") == EQUALS)) {
         return new QuitCommand(cmd_line, this->_jobs_list);
     } else {
@@ -291,7 +324,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
     // TODO: Add your implementation here
     // for example:
     cmd = CreateCommand(cmd_line);
-    cmd->execute();
+    if (cmd->error_command_dont_execute != true) { cmd->execute(); }
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
@@ -333,6 +366,8 @@ void ExternalCommand::execute() {
     }
 }
 
+//-----------------Jobs-------------------
+
 JobsCommand::JobsCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
     _job_list = jobs;
 }
@@ -343,45 +378,85 @@ void JobsCommand::execute() {
 
 
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
-    //fg command prints the command line of that job along with its pid (as can be seen in the
-    //example)
+    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !IsArgumentANumer(_args[1]))) {
+        std::cout << "smash error: fg: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
     const char *job_id_string;
     _job_list = jobs;
-    //If the job-id
-    //argument is not specified, then the job with the maximal job id in the jobs list should be
-    //selected to be brought to the foreground.
     if (number_of_args == 1) { //default to resume if not specified
         _job_id_to_fg = _job_list->_list_max_job_number;
+        _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
+        if (_job_entry_to_fg == NULL) {
+            cout << "smash error: fg: jobs list is empty\n";
+            error_command_dont_execute = true;
+            return;
+        }
     } else {
         job_id_string = _args[1];
-        _job_id_to_fg = static_cast<unsigned int>(*job_id_string);
-
-    }
-    _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
-    //If job-id was specified with a job id that does not exist, then the following error
-    //message should be reported:
-    //smash error: fg: job-id <job-id> does not exist
-    if (_job_entry_to_fg == NULL) {
-        //string = "fg: job-id " << job_id_string << " does not exist";
-        //perror("fg: job-id " << job_id_string << " does not exist")
+        _job_id_to_fg = atoi(job_id_string);
+        _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
+        if (_job_entry_to_fg == NULL) {
+            std::cout << "smash error: fg: job-id " << job_id_string << " does not exist\n";
+            error_command_dont_execute = true;
+            return;
+        }
     }
 }
 
 void ForegroundCommand::execute() {
-    // fg command prints the command line of that job along with its pid
-    std::cout << _original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
-    //and then sends to the required job SIGCONT signal and waits for it (hint:
-    //waitpid), which in effect will bring the requested process to run in the foreground.
-
-    kill(_job_entry_to_fg->_pid, SIGCONT);
-    if (waitpid(_job_entry_to_fg->_pid, NULL, WUNTRACED) < 0) {
-        perror("smash error: waitpid failed"); //TODO: yes?
+    if (error_command_dont_execute) { return; }
+    std::cout << _job_entry_to_fg->_command->_original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
+    if (kill(_job_entry_to_fg->_pid, SIGCONT) == -1) {
+        perror("“smash error: kill failed”");
     }
-
-    //After bringing the job to the foreground, it should be removed from the
-    //jobs list.
+    if (waitpid(_job_entry_to_fg->_pid, NULL, WUNTRACED) < 0) {
+        perror("smash error: waitpid failed");
+    }
     _job_list->removeJobById(_job_id_to_fg);
+}
 
+BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
+    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !IsArgumentANumer(_args[1]))) {
+        std::cout << "smash error: bg: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
+    const char *job_id_string;
+    _job_list = jobs;
+    if (number_of_args == 1) { //default to resume if not specified
+        _job_entry_to_bg = _job_list->getLastStoppedJob();
+        if (_job_entry_to_bg == NULL) {
+            cout << "smash error: bg: there is no stopped jobs to resume\n";
+            error_command_dont_execute = true;
+            return;
+        }
+        _job_id_to_bg = _job_entry_to_bg->_job_id;
+    } else {
+        job_id_string = _args[1];
+        _job_id_to_bg = atoi(job_id_string);
+        _job_entry_to_bg = jobs->getJobById(_job_id_to_bg);
+        if (_job_entry_to_bg == NULL) {
+            std::cout << "smash error: bg: job-id " << job_id_string << " does not exist\n";
+            error_command_dont_execute = true;
+            return;
+        }
+        if (!_job_entry_to_bg->isStoppedJob()) {
+            std::cout << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
+            error_command_dont_execute = true;
+            return;
+        }
+    }
+}
+
+void BackgroundCommand::execute() {
+    if (error_command_dont_execute) { return; }
+    std::cout << _job_entry_to_bg->_command->_original_cmd_line << " : " << _job_entry_to_bg->_pid << "\n";
+    if (kill(_job_entry_to_bg->_pid, SIGCONT) == -1) {
+        perror("“smash error: kill failed”");
+    }
+    _job_entry_to_bg->ReactivateJobEntry();
 }
 
 //----------------------------------------

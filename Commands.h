@@ -25,9 +25,11 @@ public:
     virtual ~Command() = default;
 
     virtual void execute() = 0;
+
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
+    bool error_command_dont_execute = false;
 };
 
 class BuiltInCommand : public Command {
@@ -175,8 +177,9 @@ public:
     JobEntry *getJobById(int jobId); //return null when not found
     void removeJobById(int jobId);
 
+    JobEntry *getLastStoppedJob();
+
     JobEntry *getLastJob(int *lastJobId); //TODO: Oren - wait
-    JobEntry *getLastStoppedJob(int *jobId); //TODO: RONY - wait dont think I need this.
     bool isInTheBackground(JobEntry *job);
 
     void UpdateMaxJob();
@@ -211,6 +214,10 @@ public:
 //bg
 class BackgroundCommand : public BuiltInCommand {
 public:
+    JobsList *_job_list;
+    JobsList::JobEntry *_job_entry_to_bg;
+    unsigned int _job_id_to_bg;
+
     BackgroundCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~BackgroundCommand() {}
