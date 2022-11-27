@@ -239,9 +239,14 @@ public:
     void execute() override;
 };
 
-//option 7 TODO: add is_not_allwed_on_backgroung?
+//option 7
 class TimeoutCommand : public BuiltInCommand {
 /* Optional */
+// I need to add ro Command/External, bool timeout, int timeout_seconds. it will only be relevant to external commands any way
+// I need to crete a list of all commands who got time out
+// when timeout is set execute timeout - there call the sys call sigaction instead of signal, and use SA_RESTART flag
+// add it to the timeout list and (use JobEntey? or command in there) and exute the commend like you did in > />>
+// than when the sig commes, go to the list and find who it's belong to (how?) and print and stop it ;
 // TODO: Add your data members
 public:
     explicit TimeoutCommand(const char *cmd_line);
@@ -266,7 +271,7 @@ public:
 //option 5 TODO: add is_not_allwed_on_backgroung?
 class SetcoreCommand : public BuiltInCommand {
     /* Optional */
-    // TODO: Add your data members
+    int _new_core;
 public:
     SetcoreCommand(const char *cmd_line);
 
