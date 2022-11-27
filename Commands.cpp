@@ -99,7 +99,7 @@ bool IsArgumentANumer(char *arg) {
 
 JobsList::JobEntry::JobEntry(Command *command, unsigned int job_id, unsigned int pid, bool is_stopped)
         : _job_id(job_id), _command(command), _is_stopped(is_stopped), _pid(pid) {
-    _job_inserted_time = time(NULL); // why is it always 0 ??
+    _job_inserted_time = time(NULL);
 }
 
 void JobsList::JobEntry::StopJobEntry() {
@@ -333,8 +333,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line, bool not_allowed_in_bac
         return new BackgroundCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("quit") == EQUALS) || (firstWord.compare("quit&") == EQUALS)) {
         return new QuitCommand(cmd_line, this->_jobs_list);
+    } else if ((firstWord.compare("kill") == EQUALS) || (firstWord.compare("kill&") == EQUALS)) {
+        return new KillCommand(cmd_line, this->_jobs_list);
     }
-
         // External:
     else {
         return new ExternalCommand(cmd_line, not_allowed_in_background);
@@ -372,11 +373,19 @@ void ExternalCommand::execute() {
         return;
     }
     if (son_pid == 0 /*son*/) {
-        setpgrp();
+        setpgrp(); //TODO: seems like they want us to check if the command is a file path that exists and that how we choose
         if (is_bash_problem) {
             execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL);
+            {
+                perror("smash error: execl failed");
+                return;
+            }
         } else {
             execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL); //TODO: all bash?
+            {
+                perror("smash error: execl failed");
+                return;
+            }
         }
     }
     if (is_background_command && !_is_not_allowed_in_background) { // if father and bg
@@ -388,6 +397,11 @@ void ExternalCommand::execute() {
         }
         smash.currentPidInFg = 0;
     }
+}
+
+void ExternalCommand::setTimeout(unsigned int seconds_to_timeout) {
+    _is_with_timeout = true;
+    _seconds_to_timeout = seconds_to_timeout;
 }
 
 //-----------------Jobs-----------------------------------------------------------
@@ -628,3 +642,95 @@ void RedirectionCommand::execute() {
     }
 }
 //--------------------------------------------------------------------------------------------------
+
+/*
+// -------------------------- AlarmList & Entry ----------------------------------
+AlarmsList::AlarmEntry::AlarmEntry(Command *command, unsigned int pid,
+                                   unsigned int sec_until_alarm) {
+    _pid = pid;
+    _command = command;
+    time_t _job_inserted_time = time(NULL);
+    unsigned int _sec_until_alarm = sec_until_alarm;
+}
+
+unsigned int AlarmsList::AlarmEntry::AlarmExpectedTime() {
+    return _job_inserted_time + _sec_until_alarm;
+}
+
+void AlarmsList::addJob(Command *cmd, unsigned int pid , unsigned int sec_until_alarm) {
+    AlarmEntry *new_alarmed_job = new AlarmEntry(cmd, pid, sec_until_alarm);
+    unsigned int expected_time = new_alarmed_job->AlarmExpectedTime();
+    PlaceJobInTheList(new_alarmed_job, expected_time)
+}
+
+void AlarmsList::PlaceJobInTheList(AlarmsList::AlarmEntry *entry, unsigned int expected_time) {
+    if(_list_all_alarms.size()==0){ // list it empty this is the first
+        _list_all_alarms.push_back(entry);
+        return;
+    }
+    auto it = _list_all_alarms.begin();
+    if (expected_time< (*it)->AlarmExpectedTime()){ // shpould be the first.
+        _list_all_alarms.push_back(entry);
+        return;
+    }
+    for (auto alarm : _list_all_alarms){ //find its place
+        if (expected_time < alarm->AlarmExpectedTime()){
+            _list_all_alarms.insert(it, entry);
+        }
+        it++;
+    }
+
+}
+*/
+// -------------------------- Kill Command ----------------------------------
+
+
+KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
+    _jobs = jobs;
+}
+
+void KillCommand::execute() {
+    _jobs->removeFinishedJobs();
+    string str = _args[1];
+    str = str.erase(0, 1);
+    _signal_number = stoi(str);
+    if (number_of_args <= 2 || number_of_args > 3 ||
+        !((_args[1])[0] == '-'/* && (isNumber(_args[1]))) || !(isNumber(_args[2])*/ || (!isSignalNumberValid()))) {
+        std::cout << "smash error: kill: invalid arguments";
+        error_command_dont_execute = true;
+        return;
+    }
+    unsigned int job_id = stoi(_args[2]);
+    JobsList::JobEntry *job_entry = _jobs->getJobById(job_id);
+    if (job_entry == nullptr) {
+        string err_msg = "kill: job-id " + to_string(job_id) + " does not exist";
+        error_command_dont_execute = true;
+        return;
+    }
+
+    unsigned int job_pid = job_entry->_pid;
+
+    //TODO: make sure this are all done:
+    // if signal will kill - go to kill
+    if (_signal_number == SIGINT) {
+
+    }
+    // if signal will stop go to stop
+    if (_signal_number == SIGSTOP) {
+
+    }
+    // if signal is counties use fg or bg.
+    if (_signal_number == SIGCONT) {
+
+    }
+
+    if (kill(job_pid, _signal_number) == -1) {
+        perror("“smash error: kill failed”");
+        return;
+    } else {
+        unsigned int job_pid = _jobs->getJobById(job_id)->_pid;
+        cout << "signal number " << _signal_number << " was sent to pid " << job_pid << endl;
+    }
+    _jobs->removeFinishedJobs();
+}
+

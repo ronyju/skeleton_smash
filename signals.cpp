@@ -38,6 +38,7 @@ void alarmHandler(int sig_num) { //TODO: check if it works
     SmallShell &smash = SmallShell::getInstance();
     std::cout << "smash: got an alarm" << std::endl;
     pid_t FgPid = smash.currentPidInFg;
+    //TODO: add support in getting alarms for the background.
     if (FgPid) { //there is a process that is running in the foreground
         if (kill(FgPid, SIGKILL) == 0) {
             std::cout << "smash: " << smash.cmd->_original_cmd_line << " timed out!" << std::endl;

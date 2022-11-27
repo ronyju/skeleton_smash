@@ -3,11 +3,43 @@
 #define OLDPWD_NOT_SET NULL
 
 #include <vector>
+#include <list>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 #define STDOUT  false
 #define STDERR  true
+
+#define SIGHUP  	1	//Hangup (POSIX)
+#define SIGINT  	2	//Terminal interrupt (ANSI)
+#define SIGQUIT	    3	//Terminal quit (POSIX)
+#define SIGILL	    4	//Illegal instruction (ANSI)
+#define SIGTRAP	    5	//Trace trap (POSIX)
+#define SIGIOT	    6	//IOT Trap (4.2 BSD)
+#define SIGBUS	    7	//BUS error (4.2 BSD)
+#define SIGFPE	    8	//Floating point exception (ANSI)
+#define SIGKILL	    9	//Kill(can't be caught or ignored) (POSIX)
+#define SIGUSR1	    10	//User defined signal 1 (POSIX)
+#define SIGSEGV	    11	//Invalid memory segment access (ANSI)
+#define SIGUSR2	    12	//User defined signal 2 (POSIX)
+#define SIGPIPE	    13	//Write on a pipe with no reader, Broken pipe (POSIX)
+#define SIGALRM	    14	//Alarm clock (POSIX)
+#define SIGTERM	    15	//Termination (ANSI)
+#define SIGSTKFLT	16	//Stack fault
+#define SIGCHLD	    17	//Child process has stopped or exited, changed (POSIX)
+#define SIGCONT	    18	//Continue executing, if stopped (POSIX)
+#define SIGSTOP	    19	//Stop executing(can't be caught or ignored) (POSIX)
+#define SIGTSTP 	20	//Terminal stop signal (POSIX)
+#define SIGTTIN	    21	//Background process trying to read, from TTY (POSIX)
+#define SIGTTOU	    22	//Background process trying to write, to TTY (POSIX)
+#define SIGURG	    23	//Urgent condition on socket (4.2 BSD)
+#define SIGXCPU	    24	//CPU limit exceeded (4.2 BSD)
+#define SIGXFSZ	    25	//File size limit exceeded (4.2 BSD)
+#define SIGVTALRM	26	//Virtual alarm clock (4.2 BSD)
+#define SIGPROF	    27	//Profiling alarm clock (4.2 BSD)
+#define SIGWINCH	28	//Window size change (4.3 BSD, Sun)
+#define SIGIO	    29	//I/O now possible (4.2 BSD)
+#define SIGPWR	    30	//Power failure restart (System V)
 
 enum file_write_approche {
     APPEND, OVERWRITE
@@ -23,6 +55,8 @@ protected:
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
     bool _is_not_allowed_in_background = false;
+    bool _is_with_timeout = false;
+    unsigned int _seconds_to_timeout = 0;
 public:
     std::string _original_cmd_line;
 
@@ -55,7 +89,10 @@ public:
 
     void execute() override;
 
+    void setTimeout(unsigned int seconds_to_timeout);
+
     bool IsBashCommand() { return true; } //TODO: change?
+
 private:
     bool is_bash_problem;
 };
@@ -239,15 +276,50 @@ public:
     void execute() override;
 };
 
+class AlarmsList {
+public:
+    class AlarmEntry {
+    public:
+        unsigned int _pid;
+        Command *_command;
+        time_t _job_inserted_time;
+        unsigned int _sec_until_alarm;
+
+        AlarmEntry(Command *command, unsigned pid, unsigned int sec_until_alarm);
+
+        ~AlarmEntry();
+
+        unsigned int AlarmExpectedTime();
+    };
+
+public:
+    std::list<AlarmEntry *> _list_all_alarms;
+
+    AlarmsList() {};
+
+    ~AlarmsList() {};
+
+    void addJob(Command *cmd, unsigned int pid, unsigned int sec_until_alarm);
+
+    void PlaceJobInTheList(AlarmEntry *entry, unsigned int expected_time);
+
+    AlarmEntry *GetFirstInList();
+
+    void removeFromList(unsigned int job_id); //TODO: make sure when alarm get stop or killed it is removed from here!
+
+
+};
+
+/*
 //option 7
-class TimeoutCommand : public BuiltInCommand {
-/* Optional */
-// I need to add ro Command/External, bool timeout, int timeout_seconds. it will only be relevant to external commands any way
+class TimeoutCommand : public BuiltInCommand
+        //TODO: what happenes if a job with alarm got stooped ? for now I will leave it in the list, and mark it stooped to ignore it
+
+// I need to add to Command/External, bool timeout, int timeout_seconds. it will only be relevant to external commands any way
 // I need to crete a list of all commands who got time out
 // when timeout is set execute timeout - there call the sys call sigaction instead of signal, and use SA_RESTART flag
 // add it to the timeout list and (use JobEntey? or command in there) and exute the commend like you did in > />>
 // than when the sig commes, go to the list and find who it's belong to (how?) and print and stop it ;
-// TODO: Add your data members
 public:
     explicit TimeoutCommand(const char *cmd_line);
 
@@ -255,6 +327,7 @@ public:
 
     void execute() override;
 };
+*/
 
 //option 7 TODO: add is_not_allwed_on_backgroung?
 class FareCommand : public BuiltInCommand {
@@ -285,11 +358,14 @@ class KillCommand : public BuiltInCommand {
     /* Bonus */
     // TODO: Add your data members
 public:
+    int _signal_number;
+    JobsList *_jobs
     KillCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~KillCommand() {}
 
     void execute() override;
+    bool isSignalNumberValid(){ return (_signal_number >= 1 && _signal_number <= 30);};
 };
 
 class SmallShell {
@@ -300,6 +376,7 @@ public:
     pid_t currentPidInFg = 0;
     Command *cmd;
     JobsList *_jobs_list;
+    JobsList *_timeout_jobs_list; // TODO: make sure you manage this right with add and remove
     char *_old_pwd = OLDPWD_NOT_SET; // will be set by cd
     Command *CreateCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
