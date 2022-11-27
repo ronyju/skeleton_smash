@@ -641,47 +641,7 @@ void RedirectionCommand::execute() {
         perror("smash error: close failed");
     }
 }
-//--------------------------------------------------------------------------------------------------
 
-/*
-// -------------------------- AlarmList & Entry ----------------------------------
-AlarmsList::AlarmEntry::AlarmEntry(Command *command, unsigned int pid,
-                                   unsigned int sec_until_alarm) {
-    _pid = pid;
-    _command = command;
-    time_t _job_inserted_time = time(NULL);
-    unsigned int _sec_until_alarm = sec_until_alarm;
-}
-
-unsigned int AlarmsList::AlarmEntry::AlarmExpectedTime() {
-    return _job_inserted_time + _sec_until_alarm;
-}
-
-void AlarmsList::addJob(Command *cmd, unsigned int pid , unsigned int sec_until_alarm) {
-    AlarmEntry *new_alarmed_job = new AlarmEntry(cmd, pid, sec_until_alarm);
-    unsigned int expected_time = new_alarmed_job->AlarmExpectedTime();
-    PlaceJobInTheList(new_alarmed_job, expected_time)
-}
-
-void AlarmsList::PlaceJobInTheList(AlarmsList::AlarmEntry *entry, unsigned int expected_time) {
-    if(_list_all_alarms.size()==0){ // list it empty this is the first
-        _list_all_alarms.push_back(entry);
-        return;
-    }
-    auto it = _list_all_alarms.begin();
-    if (expected_time< (*it)->AlarmExpectedTime()){ // shpould be the first.
-        _list_all_alarms.push_back(entry);
-        return;
-    }
-    for (auto alarm : _list_all_alarms){ //find its place
-        if (expected_time < alarm->AlarmExpectedTime()){
-            _list_all_alarms.insert(it, entry);
-        }
-        it++;
-    }
-
-}
-*/
 // -------------------------- Kill Command ----------------------------------
 
 
