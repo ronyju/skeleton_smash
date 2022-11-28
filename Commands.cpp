@@ -550,7 +550,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
         _job_id_to_fg = _job_list->_list_max_job_number;
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
         if (_job_entry_to_fg == NULL) {
-            cout << "smash error: fg: jobs list is empty\n";
+            std::cerr << "smash error: fg: jobs list is empty\n";
             error_command_dont_execute = true;
             return;
         }
