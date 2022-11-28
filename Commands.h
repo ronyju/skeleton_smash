@@ -16,7 +16,6 @@ enum file_write_approche {
 
 
 class Command {
-// TODO: Add your data members
 protected:
     unsigned _seconds_to_timeout = 0;
     bool _is_with_timeout = false;
@@ -24,7 +23,7 @@ protected:
     bool _is_not_allowed_in_background = false;
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
-    public:
+public:
     std::string _original_cmd_line;
 
     Command(const char *cmd_line, bool not_allowed_in_background = false);
@@ -37,7 +36,6 @@ protected:
 
     //virtual void prepare();
     //virtual void cleanup();
-    // TODO: Add your extra methods if needed
     bool error_command_dont_execute = false;
 };
 
@@ -65,7 +63,6 @@ private:
 };
 
 class PipeCommand : public Command {
-    // TODO: Add your data members
     bool _is_stderr = false;
 public:
     PipeCommand(const char *cmd_line, bool is_stderr);
@@ -95,7 +92,6 @@ public:
 
 //chprompt
 class ChangePromptCommand : public BuiltInCommand {
-// TODO: Add your data members public:
 public:
     ChangePromptCommand(const char *cmd_line);
 
@@ -107,7 +103,6 @@ public:
 //cd
 class ChangeDirCommand : public BuiltInCommand {
 public:
-// TODO: Add your data members public:
     ChangeDirCommand(const char *cmd_line, char **plastPwd);
 
     virtual ~ChangeDirCommand() {}
@@ -142,7 +137,6 @@ class JobsList;
 
 //quit
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members
 public:
     JobsList *_job_list;
 
@@ -174,7 +168,7 @@ public:
 
         bool isStoppedJob();
 
-        void print(); //TODO: Oren - stopped or not
+        void print();
     };
 
 public:
@@ -187,7 +181,8 @@ public:
 
     void addJob(Command *cmd, unsigned int pid, bool isStopped = false);
 
-    void printJobsList(); //TODO : RONY (check if delete)
+    void printJobsList();
+
     void killAllJobs();
 
     void removeFinishedJobs();
@@ -198,7 +193,8 @@ public:
 
     JobEntry *getLastStoppedJob();
 
-    JobEntry *getLastJob(int *lastJobId); //TODO: Oren - wait
+    JobEntry *getLastJob(int *lastJobId);
+
     bool isInTheBackground(JobEntry *job);
 
     void UpdateMaxJob();
@@ -274,7 +270,7 @@ public:
 
     AlarmEntry *GetFirstInList();
 
-    void removeFromList(unsigned int job_id); //TODO: make sure when alarm get stop or killed it is removed from here!
+    void removeFromList(unsigned int job_id);
 
 
 };
@@ -298,19 +294,24 @@ public:
 };
 */
 
-//option 7 TODO: add is_not_allwed_on_backgroung?
+//option 7 T
 class FareCommand : public BuiltInCommand {
     /* Optional */
-    // TODO: Add your data members
 public:
+    std::string _file_name;
+    std::string _find;
+    std::string _replace;
+
     FareCommand(const char *cmd_line);
 
     virtual ~FareCommand() {}
 
     void execute() override;
+
+    bool IsFileExist();
 };
 
-//option 5 TODO: add is_not_allwed_on_backgroung?
+//option 5
 class SetcoreCommand : public BuiltInCommand {
     /* Optional */
     int _new_core;
@@ -322,10 +323,9 @@ public:
     void execute() override;
 };
 
-//bunos 5 TODO: add is_not_allwed_on_backgroung?
+//bunos 5
 class KillCommand : public BuiltInCommand {
     /* Bonus */
-    // TODO: Add your data members
 public:
     int _signal_number;
     JobsList *_jobs;
@@ -340,7 +340,6 @@ public:
 
 class SmallShell {
 private:
-    // TODO: Add your data members
     std::string shell_prompt = "smash";
 public:
     pid_t currentPidInFg = 0;
@@ -365,7 +364,6 @@ public:
 
     void executeCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
-    // TODO: add extra methods as needed
     std::string GetPrompt();
 
     void SetPrompt(const char *);

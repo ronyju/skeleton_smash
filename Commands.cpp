@@ -7,6 +7,14 @@
 #include <ctime>
 #include <iomanip>
 #include <fcntl.h>
+#include <string>
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fstream>
+#include <regex>
+
+
 #include "Commands.h"
 
 using namespace std;
@@ -33,6 +41,85 @@ void removeDeadJobs();
 #define CHANGE_TO_FATHER ".."
 #endif
 
+void computeLPSArray(string pat, int M, int lps[]) {
+
+    // Length of the previous longest
+    // prefix suffix
+    int len = 0;
+    int i = 1;
+    lps[0] = 0; // lps[0] is always 0
+
+    // The loop calculates lps[i] for
+    // i = 1 to M-1
+    while (i < M) {
+        if (pat[i] == pat[len]) {
+            len++;
+            lps[i] = len;
+            i++;
+        } else // (pat[i] != pat[len])
+        {
+
+            // This is tricky. Consider the example.
+            // AAACAAAA and i = 7. The idea is similar
+            // to search step.
+            if (len != 0) {
+                len = lps[len - 1];
+
+                // Also, note that we do not
+                // increment i here
+            } else // if (len == 0)
+            {
+                lps[i] = len;
+                i++;
+            }
+        }
+    }
+}
+
+int KMPSearch(string pat, string txt) {
+    int M = pat.length();
+    int N = txt.length();
+
+    // Create lps[] that will hold the longest
+    // prefix suffix values for pattern
+    int lps[M];
+    int j = 0; // index for pat[]
+
+    // Preprocess the pattern (calculate lps[]
+    // array)
+    computeLPSArray(pat, M, lps);
+
+    int i = 0; // index for txt[]
+    int res = 0;
+    int next_i = 0;
+
+    while (i < N) {
+        if (pat[j] == txt[i]) {
+            j++;
+            i++;
+        }
+        if (j == M) {
+
+            // When we find pattern first time,
+            // we iterate again to check if there
+            // exists more pattern
+            j = lps[j - 1];
+            res++;
+        }
+
+            // Mismatch after j matches
+        else if (i < N && pat[j] != txt[i]) {
+
+            // Do not match lps[0..lps[j-1]]
+            // characters, they will match anyway
+            if (j != 0)
+                j = lps[j - 1];
+            else
+                i = i + 1;
+        }
+    }
+    return res;
+}
 
 bool isStringANumber(string suspect) {
     int num = 0;
@@ -242,7 +329,7 @@ Command::Command(const char *cmd_line, bool not_allowed_in_background) {
     is_background_command = _isBackgroundComamnd(cmd_line);
     string cmd_trimmed = _trim(string(cmd_line));
     _original_cmd_line = cmd_trimmed;
-    _removeBackgroundSign(const_cast<char *>(cmd_trimmed.c_str())); // TODO: check this !!
+    _removeBackgroundSign(const_cast<char *>(cmd_trimmed.c_str()));
     number_of_args = _parseCommandLine(const_cast<char *>(cmd_trimmed.c_str()), _args);
     _cmd_line = cmd_trimmed;
 }
@@ -287,7 +374,7 @@ ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : Buil
 }
 
 void
-ChangeDirCommand::execute() { //TODO: if cd gets no argument it needs to ignore? now it dose Segmentation fault (core dumped) and exit smash
+ChangeDirCommand::execute() {
     if (number_of_args > 2) {
         std::cout << "smash error: cd: too many arguments\n";
         return;
@@ -362,6 +449,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line, bool not_allowed_in_bac
         return new QuitCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("kill") == EQUALS) || (firstWord.compare("kill&") == EQUALS)) {
         return new KillCommand(cmd_line, this->_jobs_list);
+    } else if ((firstWord.compare("fare") == EQUALS) || (firstWord.compare("fare&") == EQUALS)) {
+        return new FareCommand(cmd_line);
     }
         // External:
     else {
@@ -372,8 +461,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line, bool not_allowed_in_bac
 }
 
 void SmallShell::executeCommand(const char *cmd_line, bool not_allowed_in_background) {
-    // TODO: Add your implementation here
     // for example:
+    if (cmd_line == "") { return; }
     cmd = CreateCommand(cmd_line, not_allowed_in_background);
     if (cmd->error_command_dont_execute != true) { cmd->execute(); }
     // Please note that you must fork smash process for some commands (e.g., external commands....)
@@ -557,7 +646,7 @@ void QuitCommand::execute() {
     if (kill(getpid(), SIGKILL) == 0) {
         perror("smash error: kill failed");
     }
-//TODO: delete killed comment printed
+//TODO:  RONY delete killed comment printed
 }
 
 PipeCommand::PipeCommand(const char *cmd_line, bool is_stderr) : Command(cmd_line), _is_stderr(is_stderr) {}
@@ -588,7 +677,7 @@ void PipeCommand::execute() {
     }
     if (first_son_pid == 0) { //first son
         SmallShell &smash = SmallShell::getInstance();
-        dup2(fd[1], _is_stderr ? 2 : 1); //TODO: add err option dup2(fd[1], 2);
+        dup2(fd[1], _is_stderr ? 2 : 1);
         close(fd[0]);
         close(fd[1]);
         smash.executeCommand(first_command.c_str(), true);
@@ -618,8 +707,11 @@ void PipeCommand::execute() {
 
 bool RedirectionCommand::isFileExists(const char *file_path) {
     int result = open(file_path, 0);
-    if (result == -1) { return false; }
-    close(result);
+    if (result == -1) {
+        perror("“smash error: open failed”");
+        return false;
+    }
+    if (close(result) == -1) { perror("“smash error: close failed”"); };
     return true;
 }
 
@@ -758,3 +850,49 @@ void KillCommand::execute() {
     _jobs->removeFinishedJobs(); // if killed will be removed from jobs
 }
 
+// -------------------------- Fare Command ----------------------------------
+FareCommand::FareCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
+    if (number_of_args != 4) {
+        std::cerr << "smash error: fare: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
+    _file_name = _args[1];
+    _find = _args[2];
+    _replace = _args[3];
+}
+
+bool FareCommand::IsFileExist() {
+    int result = open(_file_name.c_str(), 0);
+    if (result == -1) {
+        perror("“smash error: open failed”");
+        return false;
+    }
+    if (close(result) == -1) { perror("“smash error: close failed”"); };
+    return true;
+}
+
+void FareCommand::execute() {
+    if (error_command_dont_execute) { return; }
+    if (!IsFileExist()) {
+        return;
+    }
+    std::ifstream infile(_file_name);
+    std::ofstream outfile("temp_file.txt");
+    std::string line;
+    int counter = 0;
+    while (std::getline(infile, line)) {
+        string new_line = line;
+        new_line = std::regex_replace(new_line, std::regex(_find), _replace);
+        counter += KMPSearch(_find, line);
+        // write new line to the other file
+        outfile << new_line;
+        outfile << endl;
+    }
+    infile.close();
+    outfile.close();
+
+    remove(_file_name.c_str());
+    rename("temp_file.txt", _file_name.c_str());
+    std::cout << "replaced " << counter << " instances of the string “" << _find << "”\n";
+}
