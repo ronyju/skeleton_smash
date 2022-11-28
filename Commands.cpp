@@ -30,6 +30,7 @@ void removeDeadJobs();
 #define SIGKILL 9
 #define PERMISSIONS 0655
 #define STDOUT_FD 1
+#define CHANGE_TO_FATHER ".."
 #endif
 
 
@@ -104,11 +105,6 @@ void _removeBackgroundSign(char *cmd_line) {
     // truncate the command line string up to the last non-space character
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
-
-bool IsArgumentANumer(char *arg) {
-    return true;// TODO: check if the input contains latter's
-}
-
 
 //-----------------JobEntry-------------------
 
@@ -296,7 +292,14 @@ ChangeDirCommand::execute() { //TODO: if cd gets no argument it needs to ignore?
         std::cout << "smash error: cd: too many arguments\n";
         return;
     }
+    if (number_of_args == 1) { // just cd does nothing
+        return;
+    }
     char *path = _args[1]; // = second word in the command is the path
+    if (_args[1] ==
+        CHANGE_TO_FATHER) { // if cd .. - call bash bin to execute, this was not specified to be implemented by us
+        execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL);
+    }
     if (strcmp(path, CD_TO_OLD_PWD) == EQUALS) {
         if (*_old_pwd == OLDPWD_NOT_SET) {
             std::cout << "smash error: cd: OLDPWD not set\n";
@@ -439,7 +442,7 @@ void JobsCommand::execute() {
 
 
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
-    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !IsArgumentANumer(_args[1]))) {
+    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
         std::cout << "smash error: fg: invalid arguments\n";
         error_command_dont_execute = true;
         return;
@@ -485,7 +488,7 @@ void ForegroundCommand::execute() {
 BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool called_from_kill) : BuiltInCommand(
         cmd_line) {
     _called_from_kill = called_from_kill;
-    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !IsArgumentANumer(_args[1]))) {
+    if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
         if (!_called_from_kill) { std::cout << "smash error: bg: invalid arguments\n"; }
         error_command_dont_execute = true;
         return;

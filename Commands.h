@@ -24,7 +24,7 @@ protected:
     bool _is_not_allowed_in_background = false;
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
-public:
+    public:
     std::string _original_cmd_line;
 
     Command(const char *cmd_line, bool not_allowed_in_background = false);
@@ -51,8 +51,6 @@ public:
 class ExternalCommand : public Command {
 public:
     ExternalCommand(const char *cmd_line, bool not_allowed_in_background = false);
-
-    ExternalCommand(const char *cmd_line);
 
     virtual ~ExternalCommand() {}
 
