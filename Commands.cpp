@@ -7,6 +7,14 @@
 #include <ctime>
 #include <iomanip>
 #include <fcntl.h>
+#include <string>
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fstream>
+#include <regex>
+
+
 #include "Commands.h"
 
 using namespace std;
@@ -33,6 +41,85 @@ void removeDeadJobs();
 #define CHANGE_TO_FATHER ".."
 #endif
 
+void computeLPSArray(string pat, int M, int lps[]) {
+
+    // Length of the previous longest
+    // prefix suffix
+    int len = 0;
+    int i = 1;
+    lps[0] = 0; // lps[0] is always 0
+
+    // The loop calculates lps[i] for
+    // i = 1 to M-1
+    while (i < M) {
+        if (pat[i] == pat[len]) {
+            len++;
+            lps[i] = len;
+            i++;
+        } else // (pat[i] != pat[len])
+        {
+
+            // This is tricky. Consider the example.
+            // AAACAAAA and i = 7. The idea is similar
+            // to search step.
+            if (len != 0) {
+                len = lps[len - 1];
+
+                // Also, note that we do not
+                // increment i here
+            } else // if (len == 0)
+            {
+                lps[i] = len;
+                i++;
+            }
+        }
+    }
+}
+
+int KMPSearch(string pat, string txt) {
+    int M = pat.length();
+    int N = txt.length();
+
+    // Create lps[] that will hold the longest
+    // prefix suffix values for pattern
+    int lps[M];
+    int j = 0; // index for pat[]
+
+    // Preprocess the pattern (calculate lps[]
+    // array)
+    computeLPSArray(pat, M, lps);
+
+    int i = 0; // index for txt[]
+    int res = 0;
+    int next_i = 0;
+
+    while (i < N) {
+        if (pat[j] == txt[i]) {
+            j++;
+            i++;
+        }
+        if (j == M) {
+
+            // When we find pattern first time,
+            // we iterate again to check if there
+            // exists more pattern
+            j = lps[j - 1];
+            res++;
+        }
+
+            // Mismatch after j matches
+        else if (i < N && pat[j] != txt[i]) {
+
+            // Do not match lps[0..lps[j-1]]
+            // characters, they will match anyway
+            if (j != 0)
+                j = lps[j - 1];
+            else
+                i = i + 1;
+        }
+    }
+    return res;
+}
 
 bool isStringANumber(string suspect) {
     int num = 0;
@@ -124,12 +211,11 @@ void JobsList::JobEntry::ReactivateJobEntry() {
 void JobsList::JobEntry::print() {
     double seconds_elapsed = difftime(time(NULL), _job_inserted_time);
     if (_is_stopped) {
-        std::cout << "[" << _job_id << "] " << _command->_original_cmd_line << " : " << _pid << " "
-                  << seconds_elapsed
+        std::cout << "[" << _job_id << "]" << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
                   << " secs"
                   << " (stopped)\n";
     } else {
-        std::cout << "[" << _job_id << "] " << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
+        std::cout << "[" << _job_id << "]" << _command->_original_cmd_line << " : " << _pid << " " << seconds_elapsed
                   << " secs\n";
     }
 }
@@ -144,11 +230,9 @@ bool JobsList::JobEntry::isStoppedJob() {
 
 void JobsList::addJob(Command *cmd, unsigned int pid, bool isStopped) {
     removeFinishedJobs();
-    if (is_process_exist(pid)) {
-        _list_max_job_number++;
-        JobEntry *new_job = new JobEntry(cmd, _list_max_job_number, pid, isStopped);
-        _vector_all_jobs.push_back(new_job);
-    }
+    _list_max_job_number++;
+    JobEntry *new_job = new JobEntry(cmd, _list_max_job_number, pid, isStopped);
+    _vector_all_jobs.push_back(new_job);
 }
 
 void JobsList::removeJobById(int jobId) {
@@ -245,7 +329,7 @@ Command::Command(const char *cmd_line, bool not_allowed_in_background) {
     is_background_command = _isBackgroundComamnd(cmd_line);
     string cmd_trimmed = _trim(string(cmd_line));
     _original_cmd_line = cmd_trimmed;
-    _removeBackgroundSign(const_cast<char *>(cmd_trimmed.c_str())); // TODO: check this !!
+    _removeBackgroundSign(const_cast<char *>(cmd_trimmed.c_str()));
     number_of_args = _parseCommandLine(const_cast<char *>(cmd_trimmed.c_str()), _args);
     _cmd_line = cmd_trimmed;
 }
@@ -290,7 +374,7 @@ ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : Buil
 }
 
 void
-ChangeDirCommand::execute() { //TODO: if cd gets no argument it needs to ignore? now it dose Segmentation fault (core dumped) and exit smash
+ChangeDirCommand::execute() {
     if (number_of_args > 2) {
         std::cerr << "smash error: cd: too many arguments\n";
         return;
@@ -413,13 +497,10 @@ void ExternalCommand::execute() {
             execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL);
         } else {
             if (execvp(_args[0], _args) == -1)
-                if (kill(getpid(), SIGKILL) == -1) {
-                    perror("smash error: kill failed");
-                }
-            perror("smash error: execv failed");
+                perror("smash error: execv failed");
         }
     }
-    if (is_background_command && !_is_not_allowed_in_background && !is_execvp_failed) { // if father and bg
+    if (is_background_command && !_is_not_allowed_in_background) { // if father and bg
         smash._jobs_list->addJob(this, son_pid);
     } else { // if father and not bg
         smash.currentPidInFg = son_pid;
@@ -454,7 +535,7 @@ void JobsCommand::execute() {
 
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
     if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
-        std::cerr << "smash error: fg: invalid arguments\n";
+        std::cout << "smash error: fg: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
@@ -464,7 +545,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
         _job_id_to_fg = _job_list->_list_max_job_number;
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
         if (_job_entry_to_fg == NULL) {
-            cerr << "smash error: fg: jobs list is empty\n";
+            cout << "smash error: fg: jobs list is empty\n";
             error_command_dont_execute = true;
             return;
         }
@@ -473,7 +554,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
         _job_id_to_fg = atoi(job_id_string);
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
         if (_job_entry_to_fg == NULL) {
-            std::cerr << "smash error: fg: job-id " << job_id_string << " does not exist\n";
+            std::cout << "smash error: fg: job-id " << job_id_string << " does not exist\n";
             error_command_dont_execute = true;
             return;
         }
@@ -500,7 +581,7 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool 
         cmd_line) {
     _called_from_kill = called_from_kill;
     if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
-        if (!_called_from_kill) { std::cerr << "smash error: bg: invalid arguments\n"; }
+        if (!_called_from_kill) { std::cout << "smash error: bg: invalid arguments\n"; }
         error_command_dont_execute = true;
         return;
     }
@@ -509,7 +590,7 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool 
     if (number_of_args == 1) { //default to resume if not specified
         _job_entry_to_bg = _job_list->getLastStoppedJob();
         if (_job_entry_to_bg == NULL) {
-            if (!_called_from_kill) { cerr << "smash error: bg: there is no stopped jobs to resume\n"; }
+            if (!_called_from_kill) { cout << "smash error: bg: there is no stopped jobs to resume\n"; }
             error_command_dont_execute = true;
             return;
         }
@@ -519,13 +600,13 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool 
         _job_id_to_bg = atoi(job_id_string);
         _job_entry_to_bg = jobs->getJobById(_job_id_to_bg);
         if (_job_entry_to_bg == NULL) {
-            if (!_called_from_kill) { std::cerr << "smash error: bg: job-id " << job_id_string << " does not exist\n"; }
+            if (!_called_from_kill) { std::cout << "smash error: bg: job-id " << job_id_string << " does not exist\n"; }
             error_command_dont_execute = true;
             return;
         }
         if (!_job_entry_to_bg->isStoppedJob()) {
             if (!_called_from_kill) {
-                std::cerr << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
+                std::cout << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
             }
             error_command_dont_execute = true;
             return;
@@ -568,7 +649,7 @@ void QuitCommand::execute() {
     if (kill(getpid(), SIGKILL) == 0) {
         perror("smash error: kill failed");
     }
-//TODO: delete killed comment printed
+//TODO:  RONY delete killed comment printed
 }
 
 PipeCommand::PipeCommand(const char *cmd_line, bool is_stderr) : Command(cmd_line), _is_stderr(is_stderr) {}
@@ -599,7 +680,7 @@ void PipeCommand::execute() {
     }
     if (first_son_pid == 0) { //first son
         SmallShell &smash = SmallShell::getInstance();
-        dup2(fd[1], _is_stderr ? 2 : 1); //TODO: add err option dup2(fd[1], 2);
+        dup2(fd[1], _is_stderr ? 2 : 1);
         close(fd[0]);
         close(fd[1]);
         smash.executeCommand(first_command.c_str(), true);
@@ -629,8 +710,11 @@ void PipeCommand::execute() {
 
 bool RedirectionCommand::isFileExists(const char *file_path) {
     int result = open(file_path, 0);
-    if (result == -1) { return false; }
-    close(result);
+    if (result == -1) {
+        perror("“smash error: open failed”");
+        return false;
+    }
+    if (close(result) == -1) { perror("“smash error: close failed”"); };
     return true;
 }
 
@@ -695,30 +779,30 @@ KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(
 void KillCommand::execute() {
     _jobs->removeFinishedJobs();
     if (number_of_args <= 2 || number_of_args > 3) {
-        std::cerr << "smash error: kill: invalid arguments\n";
+        std::cout << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     if (!((_args[1])[0] == '-')) {
-        std::cerr << "smash error: kill: invalid arguments\n";
+        std::cout << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     if (!isStringANumber(_args[1]) || !isStringANumber(_args[2])) {
-        std::cerr << "smash error: kill: invalid arguments\n";
+        std::cout << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     string prepare_signal = _args[1];
     prepare_signal = prepare_signal.erase(0, 1);
     if (!isStringANumber(prepare_signal)) {
-        std::cerr << "smash error: kill: invalid arguments";
+        std::cout << "smash error: kill: invalid arguments";
         error_command_dont_execute = true;
         return;
     }
     _signal_number = stoi(prepare_signal);
     if (_signal_number < 1 || _signal_number > 30) {
-        std::cerr << "smash error: kill: invalid arguments\n";
+        std::cout << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
@@ -769,3 +853,49 @@ void KillCommand::execute() {
     _jobs->removeFinishedJobs(); // if killed will be removed from jobs
 }
 
+// -------------------------- Fare Command ----------------------------------
+FareCommand::FareCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
+    if (number_of_args != 4) {
+        std::cerr << "smash error: fare: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
+    _file_name = _args[1];
+    _find = _args[2];
+    _replace = _args[3];
+}
+
+bool FareCommand::IsFileExist() {
+    int result = open(_file_name.c_str(), 0);
+    if (result == -1) {
+        perror("“smash error: open failed”");
+        return false;
+    }
+    if (close(result) == -1) { perror("“smash error: close failed”"); };
+    return true;
+}
+
+void FareCommand::execute() {
+    if (error_command_dont_execute) { return; }
+    if (!IsFileExist()) {
+        return;
+    }
+    std::ifstream infile(_file_name);
+    std::ofstream outfile("temp_file.txt");
+    std::string line;
+    int counter = 0;
+    while (std::getline(infile, line)) {
+        string new_line = line;
+        new_line = std::regex_replace(new_line, std::regex(_find), _replace);
+        counter += KMPSearch(_find, line);
+        // write new line to the other file
+        outfile << new_line;
+        outfile << endl;
+    }
+    infile.close();
+    outfile.close();
+
+    remove(_file_name.c_str());
+    rename("temp_file.txt", _file_name.c_str());
+    std::cout << "replaced " << counter << " instances of the string “" << _find << "”\n";
+}
