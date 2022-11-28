@@ -137,7 +137,9 @@ bool isStringANumber(string suspect) {
 
 bool is_process_exist(unsigned int process_pid) {
     int is_still_alive = waitpid(process_pid, nullptr, WNOHANG);
-    if (is_still_alive != 0) { return false; }
+    if (is_still_alive != 0) {
+        return false;
+    }
     return true;
 }
 
@@ -229,10 +231,18 @@ bool JobsList::JobEntry::isStoppedJob() {
 //-----------------JobsList-------------------
 
 void JobsList::addJob(Command *cmd, unsigned int pid, bool isStopped) {
+    if (getJobByPID(pid) != NULL) { // fg that was stooped. is alredy in the list
+        JobEntry *fg_stopped_job = getJobByPID(pid);
+        fg_stopped_job->_is_stopped = true;
+        fg_stopped_job->_command->got_fg = false;
+        return;
+    }
     removeFinishedJobs();
     if (is_process_exist(pid)) {
+        JobEntry *new_job;
         _list_max_job_number++;
-        JobEntry *new_job = new JobEntry(cmd, _list_max_job_number, pid, isStopped);
+        cmd->_job_id_if_has = _list_max_job_number;
+        new_job = new JobEntry(cmd, _list_max_job_number, pid, isStopped);
         _vector_all_jobs.push_back(new_job);
     }
 }
@@ -295,6 +305,7 @@ void JobsList::removeFinishedJobs() {
     for (auto job: _vector_all_jobs) {
         if (!(is_process_exist(job->_pid))) {
             _vector_all_jobs.erase(it);
+            //TODO: RONY remove the job entery?
         }
         it++;
     }
@@ -578,7 +589,8 @@ void ForegroundCommand::execute() {
     if (waitpid(_job_entry_to_fg->_pid, NULL, WUNTRACED) < 0) {
         perror("smash error: waitpid failed");
     }
-    _job_list->removeJobById(_job_id_to_fg);
+    //_job_list->removeJobById(_job_id_to_fg);
+    _job_entry_to_fg->_command->got_fg = true;
     smash.currentPidInFg = 0;
 }
 

@@ -17,6 +17,7 @@ enum file_write_approche {
 
 class Command {
 protected:
+
     unsigned _seconds_to_timeout = 0;
     bool _is_with_timeout = false;
     std::string _cmd_line;
@@ -24,7 +25,9 @@ protected:
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
 public:
+    unsigned int _job_id_if_has = 0;// when doesn't have a job id is set to 0
     std::string _original_cmd_line;
+    bool got_fg = false;
 
     Command(const char *cmd_line, bool not_allowed_in_background = false);
 
