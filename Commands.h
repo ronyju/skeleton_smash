@@ -8,8 +8,11 @@
 #define COMMAND_MAX_ARGS (20)
 #define STDOUT  false
 #define STDERR  true
-#define APPEND true
-#define DONT_APPEND false
+
+enum file_write_approche {
+    APPEND, OVERWRITE
+};
+
 
 class Command {
 // TODO: Add your data members
@@ -22,7 +25,7 @@ protected:
 public:
     std::string _original_cmd_line;
 
-    Command(const char *cmd_line);
+    Command(const char *cmd_line, bool not_allowed_in_background = false);
 
     bool is_background_command = false;
 
@@ -38,20 +41,24 @@ public:
 
 class BuiltInCommand : public Command {
 public:
-    BuiltInCommand(const char *cmd_line);
+    BuiltInCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     virtual ~BuiltInCommand() {}
 };
 
 class ExternalCommand : public Command {
 public:
-    ExternalCommand(const char *cmd_line);
+    ExternalCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     virtual ~ExternalCommand() {}
 
     void execute() override;
 
     bool IsComplexCommand();
+
+    void setTimeout(unsigned int seconds_to_timeout);
+
+    bool IsBashCommand() { return true; } //TODO: change?
 
 private:
     bool is_bash_problem;
@@ -69,13 +76,18 @@ public:
 };
 
 class RedirectionCommand : public Command {
-    // TODO: Add your data members
+    file_write_approche _approche;
+    std::string _command;
+    std::string _file_path;
 public:
-    explicit RedirectionCommand(const char *cmd_line);
+    RedirectionCommand(const char *cmd_line, file_write_approche approche);
 
     virtual ~RedirectionCommand() {}
 
     void execute() override;
+
+    bool isFileExists(const char *file_path);
+
     //void prepare() override;
     //void cleanup() override;
 };
@@ -181,6 +193,7 @@ public:
     void removeFinishedJobs();
 
     JobEntry *getJobById(int jobId); //return null when not found
+    JobEntry *getJobByPID(unsigned int job_pid); //return null when not found
     void removeJobById(int jobId);
 
     JobEntry *getLastStoppedJob();
@@ -223,18 +236,59 @@ public:
     JobsList *_job_list;
     JobsList::JobEntry *_job_entry_to_bg;
     unsigned int _job_id_to_bg;
+    bool _called_from_kill = false;
 
-    BackgroundCommand(const char *cmd_line, JobsList *jobs);
+    BackgroundCommand(const char *cmd_line, JobsList *jobs, bool called_from_kill = false);
 
     virtual ~BackgroundCommand() {}
 
     void execute() override;
 };
 
+class AlarmsList {
+public:
+    class AlarmEntry {
+    public:
+        unsigned int _pid;
+        Command *_command;
+        time_t _job_inserted_time;
+        unsigned int _sec_until_alarm;
+
+        AlarmEntry(Command *command, unsigned pid, unsigned int sec_until_alarm);
+
+        ~AlarmEntry();
+
+        unsigned int AlarmExpectedTime();
+    };
+
+public:
+    std::list<AlarmEntry *> _list_all_alarms;
+
+    AlarmsList() {};
+
+    ~AlarmsList() {};
+
+    void addJob(Command *cmd, unsigned int pid, unsigned int sec_until_alarm);
+
+    void PlaceJobInTheList(AlarmEntry *entry, unsigned int expected_time);
+
+    AlarmEntry *GetFirstInList();
+
+    void removeFromList(unsigned int job_id); //TODO: make sure when alarm get stop or killed it is removed from here!
+
+
+};
+
+/*
 //option 7
-class TimeoutCommand : public BuiltInCommand {
-/* Optional */
-// TODO: Add your data members
+class TimeoutCommand : public BuiltInCommand
+        //TODO: what happenes if a job with alarm got stooped ? for now I will leave it in the list, and mark it stooped to ignore it
+
+// I need to add to Command/External, bool timeout, int timeout_seconds. it will only be relevant to external commands any way
+// I need to crete a list of all commands who got time out
+// when timeout is set execute timeout - there call the sys call sigaction instead of signal, and use SA_RESTART flag
+// add it to the timeout list and (use JobEntey? or command in there) and exute the commend like you did in > />>
+// than when the sig commes, go to the list and find who it's belong to (how?) and print and stop it ;
 public:
     explicit TimeoutCommand(const char *cmd_line);
 
@@ -242,8 +296,9 @@ public:
 
     void execute() override;
 };
+*/
 
-//option 7
+//option 7 TODO: add is_not_allwed_on_backgroung?
 class FareCommand : public BuiltInCommand {
     /* Optional */
     // TODO: Add your data members
@@ -255,10 +310,10 @@ public:
     void execute() override;
 };
 
-//option 5
+//option 5 TODO: add is_not_allwed_on_backgroung?
 class SetcoreCommand : public BuiltInCommand {
     /* Optional */
-    // TODO: Add your data members
+    int _new_core;
 public:
     SetcoreCommand(const char *cmd_line);
 
@@ -267,16 +322,20 @@ public:
     void execute() override;
 };
 
-//bunos 5
+//bunos 5 TODO: add is_not_allwed_on_backgroung?
 class KillCommand : public BuiltInCommand {
     /* Bonus */
     // TODO: Add your data members
 public:
+    int _signal_number;
+    JobsList *_jobs;
+
     KillCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~KillCommand() {}
 
     void execute() override;
+
 };
 
 class SmallShell {
@@ -287,8 +346,9 @@ public:
     pid_t currentPidInFg = 0;
     Command *cmd;
     JobsList *_jobs_list;
+    JobsList *_timeout_jobs_list; // TODO: make sure you manage this right with add and remove
     char *_old_pwd = OLDPWD_NOT_SET; // will be set by cd
-    Command *CreateCommand(const char *cmd_line);
+    Command *CreateCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     SmallShell();
 
@@ -303,7 +363,7 @@ public:
 
     ~SmallShell();
 
-    void executeCommand(const char *cmd_line);
+    void executeCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
     // TODO: add extra methods as needed
     std::string GetPrompt();
