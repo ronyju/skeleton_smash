@@ -346,7 +346,7 @@ void SmallShell::SetPrompt(const char *newPromptName) {
 }
 
 ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
-    is_bash_problem = IsBashCommand();
+    is_bash_problem = IsComplexCommand();
 }
 
 void ExternalCommand::execute() {
@@ -358,10 +358,12 @@ void ExternalCommand::execute() {
     }
     if (son_pid == 0 /*son*/) {
         setpgrp();
-        if (is_bash_problem) {
-            execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL);
+        if (is_bash_problem) { //true if complex command
+            if (execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL) == -1)
+                perror("smash error: execv failed");
         } else {
-            execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL); //TODO: all bash?
+            if (execvp(_args[0], _args) == -1)
+                perror("smash error: execv failed");
         }
     }
     if (is_background_command) { // if father and bg
@@ -373,6 +375,10 @@ void ExternalCommand::execute() {
         }
         smash.currentPidInFg = 0;
     }
+}
+
+bool ExternalCommand::IsComplexCommand() {
+    return (_cmd_line.find_first_of('*') != string::npos || _cmd_line.find_first_of('?') != string::npos);
 }
 
 //-----------------Jobs-------------------

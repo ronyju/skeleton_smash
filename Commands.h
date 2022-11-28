@@ -51,7 +51,8 @@ public:
 
     void execute() override;
 
-    bool IsBashCommand() { return true; } //TODO: change?
+    bool IsComplexCommand();
+
 private:
     bool is_bash_problem;
 };
