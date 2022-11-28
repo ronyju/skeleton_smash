@@ -230,9 +230,11 @@ bool JobsList::JobEntry::isStoppedJob() {
 
 void JobsList::addJob(Command *cmd, unsigned int pid, bool isStopped) {
     removeFinishedJobs();
-    _list_max_job_number++;
-    JobEntry *new_job = new JobEntry(cmd, _list_max_job_number, pid, isStopped);
-    _vector_all_jobs.push_back(new_job);
+    if (is_process_exist(pid)) {
+        _list_max_job_number++;
+        JobEntry *new_job = new JobEntry(cmd, _list_max_job_number, pid, isStopped);
+        _vector_all_jobs.push_back(new_job);
+    }
 }
 
 void JobsList::removeJobById(int jobId) {
@@ -497,7 +499,10 @@ void ExternalCommand::execute() {
             execl("/bin/bash", "bin/bash", "-c", _cmd_line.c_str(), NULL);
         } else {
             if (execvp(_args[0], _args) == -1)
-                perror("smash error: execv failed");
+                if (kill(getpid(), SIGKILL) == -1) {
+                    perror("smash error: kill failed");
+                }
+            perror("smash error: execv failed");
         }
     }
     if (is_background_command && !_is_not_allowed_in_background) { // if father and bg
@@ -535,7 +540,7 @@ void JobsCommand::execute() {
 
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
     if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
-        std::cout << "smash error: fg: invalid arguments\n";
+        std::cerr << "smash error: fg: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
@@ -554,7 +559,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
         _job_id_to_fg = atoi(job_id_string);
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
         if (_job_entry_to_fg == NULL) {
-            std::cout << "smash error: fg: job-id " << job_id_string << " does not exist\n";
+            std::cerr << "smash error: fg: job-id " << job_id_string << " does not exist\n";
             error_command_dont_execute = true;
             return;
         }
@@ -581,7 +586,7 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool 
         cmd_line) {
     _called_from_kill = called_from_kill;
     if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
-        if (!_called_from_kill) { std::cout << "smash error: bg: invalid arguments\n"; }
+        if (!_called_from_kill) { std::cerr << "smash error: bg: invalid arguments\n"; }
         error_command_dont_execute = true;
         return;
     }
@@ -600,13 +605,13 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool 
         _job_id_to_bg = atoi(job_id_string);
         _job_entry_to_bg = jobs->getJobById(_job_id_to_bg);
         if (_job_entry_to_bg == NULL) {
-            if (!_called_from_kill) { std::cout << "smash error: bg: job-id " << job_id_string << " does not exist\n"; }
+            if (!_called_from_kill) { std::cerr << "smash error: bg: job-id " << job_id_string << " does not exist\n"; }
             error_command_dont_execute = true;
             return;
         }
         if (!_job_entry_to_bg->isStoppedJob()) {
             if (!_called_from_kill) {
-                std::cout << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
+                std::cerr << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
             }
             error_command_dont_execute = true;
             return;
@@ -779,37 +784,37 @@ KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(
 void KillCommand::execute() {
     _jobs->removeFinishedJobs();
     if (number_of_args <= 2 || number_of_args > 3) {
-        std::cout << "smash error: kill: invalid arguments\n";
+        std::cerr << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     if (!((_args[1])[0] == '-')) {
-        std::cout << "smash error: kill: invalid arguments\n";
+        std::cerr << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     if (!isStringANumber(_args[1]) || !isStringANumber(_args[2])) {
-        std::cout << "smash error: kill: invalid arguments\n";
+        std::cerr << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     string prepare_signal = _args[1];
     prepare_signal = prepare_signal.erase(0, 1);
     if (!isStringANumber(prepare_signal)) {
-        std::cout << "smash error: kill: invalid arguments";
+        std::cerr << "smash error: kill: invalid arguments";
         error_command_dont_execute = true;
         return;
     }
     _signal_number = stoi(prepare_signal);
     if (_signal_number < 1 || _signal_number > 30) {
-        std::cout << "smash error: kill: invalid arguments\n";
+        std::cerr << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     unsigned int job_id = stoi(_args[2]);
     JobsList::JobEntry *job_entry = _jobs->getJobById(job_id);
     if (job_entry == NULL) {
-        std::cout << "kill: job-id " + to_string(job_id) + " does not exist\n";
+        std::cerr << "kill: job-id " + to_string(job_id) + " does not exist\n";
         error_command_dont_execute = true;
         return;
     }
