@@ -384,7 +384,8 @@ void SmallShell::SetPrompt(const char *newPromptName) {
     shell_prompt = newPromptName;
 }
 
-ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
+ExternalCommand::ExternalCommand(const char *cmd_line, bool not_allowed_in_background) : Command(cmd_line,
+                                                                                                 not_allowed_in_background) {
     is_bash_problem = IsComplexCommand();
 }
 
@@ -420,10 +421,11 @@ void ExternalCommand::setTimeout(unsigned int seconds_to_timeout) {
     _seconds_to_timeout = seconds_to_timeout;
 }
 
-//-----------------Jobs-----------------------------------------------------------
 bool ExternalCommand::IsComplexCommand() {
     return (_cmd_line.find_first_of('*') != string::npos || _cmd_line.find_first_of('?') != string::npos);
 }
+
+
 
 //-----------------Jobs-------------------
 

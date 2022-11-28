@@ -3,6 +3,7 @@
 #define OLDPWD_NOT_SET NULL
 
 #include <vector>
+#include <list>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -17,9 +18,10 @@ enum file_write_approche {
 class Command {
 // TODO: Add your data members
 protected:
-
+    unsigned _seconds_to_timeout = 0;
+    bool _is_with_timeout = false;
     std::string _cmd_line;
-
+    bool _is_not_allowed_in_background = false;
     char *_args[COMMAND_MAX_ARGS];
     int number_of_args;
 public:
@@ -50,6 +52,8 @@ class ExternalCommand : public Command {
 public:
     ExternalCommand(const char *cmd_line, bool not_allowed_in_background = false);
 
+    ExternalCommand(const char *cmd_line);
+
     virtual ~ExternalCommand() {}
 
     void execute() override;
@@ -57,8 +61,6 @@ public:
     bool IsComplexCommand();
 
     void setTimeout(unsigned int seconds_to_timeout);
-
-    bool IsBashCommand() { return true; } //TODO: change?
 
 private:
     bool is_bash_problem;
