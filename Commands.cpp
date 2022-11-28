@@ -812,10 +812,11 @@ void KillCommand::execute() {
         error_command_dont_execute = true;
         return;
     }
-    unsigned int job_id = stoi(_args[2]);
+    string job_id_string = _args[2];
+    unsigned int job_id = stoi(job_id_string);
     JobsList::JobEntry *job_entry = _jobs->getJobById(job_id);
     if (job_entry == NULL) {
-        std::cerr << "kill: job-id " + to_string(job_id) + " does not exist\n";
+        std::cerr << "smash error: kill: job-id " + job_id_string + " does not exist\n";
         error_command_dont_execute = true;
         return;
     }
@@ -853,7 +854,7 @@ void KillCommand::execute() {
         perror("“smash error: kill failed”");
         return;
     } else {
-        unsigned int job_pid = _jobs->getJobByPID(job_pid)->_pid;
+        //unsigned int job_pid = _jobs->getJobByPID(job_pid)->_pid;
         std::cout << "signal number " << _signal_number << " was sent to pid " << job_pid << "\n";
     }
     _jobs->removeFinishedJobs(); // if killed will be removed from jobs
