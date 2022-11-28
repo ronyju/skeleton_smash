@@ -32,6 +32,21 @@ void removeDeadJobs();
 #define STDOUT_FD 1
 #endif
 
+
+bool isStringANumber(string suspect) {
+    int num = 0;
+    while (suspect[num] == '-') { // if it is a negative number
+        num++;
+    }
+    //now, if this is a number, there will be only digits
+    for (int i = num; i < suspect.length(); i++) {
+        if (isdigit(suspect[i]) == false) { //not a digit
+            return false;
+        }
+    }
+    return true;
+}
+
 bool is_process_exist(unsigned int process_pid) {
     int is_still_alive = waitpid(process_pid, nullptr, WNOHANG);
     if (is_still_alive != 0) { return false; }
@@ -161,6 +176,15 @@ void JobsList::killAllJobs() {
 JobsList::JobEntry *JobsList::getJobById(int jobId) {
     for (auto &job: _vector_all_jobs) {
         if (job->_job_id == jobId) {
+            return job;
+        }
+    }
+    return NULL; // not found any job with this id
+}
+
+JobsList::JobEntry *JobsList::getJobByPID(unsigned int job_pid) {
+    for (auto &job: _vector_all_jobs) {
+        if (job->_pid == job_pid) {
             return job;
         }
     }
@@ -459,9 +483,11 @@ void ForegroundCommand::execute() {
     smash.currentPidInFg = 0;
 }
 
-BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
+BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool called_from_kill) : BuiltInCommand(
+        cmd_line) {
+    _called_from_kill = called_from_kill;
     if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !IsArgumentANumer(_args[1]))) {
-        std::cout << "smash error: bg: invalid arguments\n";
+        if (!_called_from_kill) { std::cout << "smash error: bg: invalid arguments\n"; }
         error_command_dont_execute = true;
         return;
     }
@@ -470,7 +496,7 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : Bui
     if (number_of_args == 1) { //default to resume if not specified
         _job_entry_to_bg = _job_list->getLastStoppedJob();
         if (_job_entry_to_bg == NULL) {
-            cout << "smash error: bg: there is no stopped jobs to resume\n";
+            if (!_called_from_kill) { cout << "smash error: bg: there is no stopped jobs to resume\n"; }
             error_command_dont_execute = true;
             return;
         }
@@ -480,12 +506,14 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : Bui
         _job_id_to_bg = atoi(job_id_string);
         _job_entry_to_bg = jobs->getJobById(_job_id_to_bg);
         if (_job_entry_to_bg == NULL) {
-            std::cout << "smash error: bg: job-id " << job_id_string << " does not exist\n";
+            if (!_called_from_kill) { std::cout << "smash error: bg: job-id " << job_id_string << " does not exist\n"; }
             error_command_dont_execute = true;
             return;
         }
         if (!_job_entry_to_bg->isStoppedJob()) {
-            std::cout << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
+            if (!_called_from_kill) {
+                std::cout << "smash error: bg: job-id " << job_id_string << " is already running in the background\n";
+            }
             error_command_dont_execute = true;
             return;
         }
@@ -495,7 +523,9 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs) : Bui
 void BackgroundCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     if (error_command_dont_execute) { return; }
-    std::cout << _job_entry_to_bg->_command->_original_cmd_line << " : " << _job_entry_to_bg->_pid << "\n";
+    if (!_called_from_kill) {
+        std::cout << _job_entry_to_bg->_command->_original_cmd_line << " : " << _job_entry_to_bg->_pid << "\n";
+    }
     if (kill(_job_entry_to_bg->_pid, SIGCONT) == -1) {
         perror("“smash error: kill failed”");
     }
@@ -651,46 +681,78 @@ KillCommand::KillCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(
 
 void KillCommand::execute() {
     _jobs->removeFinishedJobs();
-    string str = _args[1];
-    str = str.erase(0, 1);
-    _signal_number = stoi(str);
-    if (number_of_args <= 2 || number_of_args > 3 ||
-        !((_args[1])[0] == '-'/* && (isNumber(_args[1]))) || !(isNumber(_args[2])*/ || (!isSignalNumberValid()))) {
+    if (number_of_args <= 2 || number_of_args > 3) {
+        std::cout << "smash error: kill: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
+    if (!((_args[1])[0] == '-')) {
+        std::cout << "smash error: kill: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
+    if (!isStringANumber(_args[1]) || !isStringANumber(_args[2])) {
+        std::cout << "smash error: kill: invalid arguments\n";
+        error_command_dont_execute = true;
+        return;
+    }
+    string prepare_signal = _args[1];
+    prepare_signal = prepare_signal.erase(0, 1);
+    if (!isStringANumber(prepare_signal)) {
         std::cout << "smash error: kill: invalid arguments";
+        error_command_dont_execute = true;
+        return;
+    }
+    _signal_number = stoi(prepare_signal);
+    if (_signal_number < 1 || _signal_number > 30) {
+        std::cout << "smash error: kill: invalid arguments\n";
         error_command_dont_execute = true;
         return;
     }
     unsigned int job_id = stoi(_args[2]);
     JobsList::JobEntry *job_entry = _jobs->getJobById(job_id);
-    if (job_entry == nullptr) {
-        string err_msg = "kill: job-id " + to_string(job_id) + " does not exist";
+    if (job_entry == NULL) {
+        std::cout << "kill: job-id " + to_string(job_id) + " does not exist\n";
         error_command_dont_execute = true;
         return;
     }
 
     unsigned int job_pid = job_entry->_pid;
 
-    //TODO: make sure this are all done:
-    // if signal will kill - go to kill
-    if (_signal_number == SIGINT) {
-
+    if (_signal_number == SIGSTOP) { // stop will only get jobs that are already in the list, no need to add a new one
+        // add stopped to the jobs list
+        if (kill(job_pid, SIGSTOP) == -1) {
+            perror("smash error: kill failed\n");
+            return;
+        } else {
+            job_entry->_is_stopped = true;
+            cout << "signal number " << _signal_number << " was sent to pid " << job_pid << "\n";
+            return;
+        }
     }
-    // if signal will stop go to stop
-    if (_signal_number == SIGSTOP) {
 
-    }
-    // if signal is counties use fg or bg.
     if (_signal_number == SIGCONT) {
-
+        if (job_entry->isStoppedJob()) { // if it is not stopped just send the signal.
+            if (job_entry->_command->is_background_command) {
+                // call bg - it was stopped and need to continue but stay in the background:
+                std::string bg_cmd_line = "bg ";
+                bg_cmd_line += _args[2];
+                Command *bg_command = new BackgroundCommand(bg_cmd_line.c_str(), _jobs, true);
+                if (bg_command->error_command_dont_execute != true) { bg_command->execute(); }
+                delete bg_command;
+                cout << "signal number " << _signal_number << " was sent to pid " << job_pid << "\n";
+                return;
+            }
+        }
     }
 
     if (kill(job_pid, _signal_number) == -1) {
         perror("“smash error: kill failed”");
         return;
     } else {
-        unsigned int job_pid = _jobs->getJobById(job_id)->_pid;
-        cout << "signal number " << _signal_number << " was sent to pid " << job_pid << endl;
+        unsigned int job_pid = _jobs->getJobByPID(job_pid)->_pid;
+        std::cout << "signal number " << _signal_number << " was sent to pid " << job_pid << "\n";
     }
-    _jobs->removeFinishedJobs();
+    _jobs->removeFinishedJobs(); // if killed will be removed from jobs
 }
 

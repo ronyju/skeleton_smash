@@ -10,37 +10,6 @@
 #define STDOUT  false
 #define STDERR  true
 
-#define SIGHUP  	1	//Hangup (POSIX)
-#define SIGINT  	2	//Terminal interrupt (ANSI)
-#define SIGQUIT	    3	//Terminal quit (POSIX)
-#define SIGILL	    4	//Illegal instruction (ANSI)
-#define SIGTRAP	    5	//Trace trap (POSIX)
-#define SIGIOT	    6	//IOT Trap (4.2 BSD)
-#define SIGBUS	    7	//BUS error (4.2 BSD)
-#define SIGFPE	    8	//Floating point exception (ANSI)
-#define SIGKILL	    9	//Kill(can't be caught or ignored) (POSIX)
-#define SIGUSR1	    10	//User defined signal 1 (POSIX)
-#define SIGSEGV	    11	//Invalid memory segment access (ANSI)
-#define SIGUSR2	    12	//User defined signal 2 (POSIX)
-#define SIGPIPE	    13	//Write on a pipe with no reader, Broken pipe (POSIX)
-#define SIGALRM	    14	//Alarm clock (POSIX)
-#define SIGTERM	    15	//Termination (ANSI)
-#define SIGSTKFLT	16	//Stack fault
-#define SIGCHLD	    17	//Child process has stopped or exited, changed (POSIX)
-#define SIGCONT	    18	//Continue executing, if stopped (POSIX)
-#define SIGSTOP	    19	//Stop executing(can't be caught or ignored) (POSIX)
-#define SIGTSTP 	20	//Terminal stop signal (POSIX)
-#define SIGTTIN	    21	//Background process trying to read, from TTY (POSIX)
-#define SIGTTOU	    22	//Background process trying to write, to TTY (POSIX)
-#define SIGURG	    23	//Urgent condition on socket (4.2 BSD)
-#define SIGXCPU	    24	//CPU limit exceeded (4.2 BSD)
-#define SIGXFSZ	    25	//File size limit exceeded (4.2 BSD)
-#define SIGVTALRM	26	//Virtual alarm clock (4.2 BSD)
-#define SIGPROF	    27	//Profiling alarm clock (4.2 BSD)
-#define SIGWINCH	28	//Window size change (4.3 BSD, Sun)
-#define SIGIO	    29	//I/O now possible (4.2 BSD)
-#define SIGPWR	    30	//Power failure restart (System V)
-
 enum file_write_approche {
     APPEND, OVERWRITE
 };
@@ -226,6 +195,7 @@ public:
     void removeFinishedJobs();
 
     JobEntry *getJobById(int jobId); //return null when not found
+    JobEntry *getJobByPID(unsigned int job_pid); //return null when not found
     void removeJobById(int jobId);
 
     JobEntry *getLastStoppedJob();
@@ -268,8 +238,9 @@ public:
     JobsList *_job_list;
     JobsList::JobEntry *_job_entry_to_bg;
     unsigned int _job_id_to_bg;
+    bool _called_from_kill = false;
 
-    BackgroundCommand(const char *cmd_line, JobsList *jobs);
+    BackgroundCommand(const char *cmd_line, JobsList *jobs, bool called_from_kill = false);
 
     virtual ~BackgroundCommand() {}
 
@@ -359,13 +330,14 @@ class KillCommand : public BuiltInCommand {
     // TODO: Add your data members
 public:
     int _signal_number;
-    JobsList *_jobs
+    JobsList *_jobs;
+
     KillCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~KillCommand() {}
 
     void execute() override;
-    bool isSignalNumberValid(){ return (_signal_number >= 1 && _signal_number <= 30);};
+
 };
 
 class SmallShell {
