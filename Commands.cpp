@@ -595,7 +595,7 @@ BackgroundCommand::BackgroundCommand(const char *cmd_line, JobsList *jobs, bool 
     if (number_of_args == 1) { //default to resume if not specified
         _job_entry_to_bg = _job_list->getLastStoppedJob();
         if (_job_entry_to_bg == NULL) {
-            if (!_called_from_kill) { cout << "smash error: bg: there is no stopped jobs to resume\n"; }
+            if (!_called_from_kill) { std::cerr << "smash error: bg: there is no stopped jobs to resume\n"; }
             error_command_dont_execute = true;
             return;
         }
