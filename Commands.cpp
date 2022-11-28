@@ -643,6 +643,7 @@ void QuitCommand::execute() {
     if (number_of_args >= 2) {
         string first_arg(_args[1]);
         if (first_arg == "kill") {
+            _job_list->removeFinishedJobs();
             std::cout << "smash: sending SIGKILL signal to " << _job_list->_vector_all_jobs.size() << " jobs:"
                       << std::endl;
             for (auto job: _job_list->_vector_all_jobs) {
