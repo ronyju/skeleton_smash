@@ -289,7 +289,7 @@ JobsList::JobEntry *JobsList::getJobByPID(unsigned int job_pid) {
 void JobsList::UpdateMaxJob() {
     unsigned int current_bigger_job_id = 0;
     for (auto job: _vector_all_jobs) {
-        if (job->_job_id > current_bigger_job_id) {
+        if (job->_job_id > current_bigger_job_id && !job->_command->got_fg) {//TODO:OREN? check
             current_bigger_job_id = job->_job_id;
         }
     }
@@ -304,7 +304,8 @@ void JobsList::removeFinishedJobs() {
     vector<JobEntry *>::iterator it = _vector_all_jobs.begin();
     for (auto job: _vector_all_jobs) {
         if (!(is_process_exist(job->_pid))) {
-            _vector_all_jobs.erase(it);
+            it = it - 1; //to resume from same point we stoped before erasing
+            _vector_all_jobs.erase(it + 1);
             //TODO: RONY remove the job entery?
         }
         it++;
@@ -550,6 +551,7 @@ void JobsCommand::execute() {
 
 
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
+    jobs->removeFinishedJobs();
     if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
         std::cerr << "smash error: fg: invalid arguments\n";
         error_command_dont_execute = true;
@@ -569,7 +571,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
         job_id_string = _args[1];
         _job_id_to_fg = atoi(job_id_string);
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
-        if (_job_entry_to_fg == NULL) {
+        if (_job_entry_to_fg == NULL || _job_entry_to_fg->_command->got_fg) {//TODO: rony? is this needed?
             std::cerr << "smash error: fg: job-id " << job_id_string << " does not exist\n";
             error_command_dont_execute = true;
             return;
@@ -589,8 +591,8 @@ void ForegroundCommand::execute() {
     if (waitpid(_job_entry_to_fg->_pid, NULL, WUNTRACED) < 0) {
         perror("smash error: waitpid failed");
     }
-    //_job_list->removeJobById(_job_id_to_fg);
     _job_entry_to_fg->_command->got_fg = true;
+    smash._jobs_list->UpdateMaxJob(); //TODO:OREN? check
     smash.currentPidInFg = 0;
 }
 
