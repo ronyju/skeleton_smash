@@ -263,6 +263,7 @@ void JobsList::killAllJobs() {
         removeJobById(job->_job_id);
         if (kill(job->_pid, SIGKILL) == -1) {
             perror("“smash error: kill failed”");
+            //TODO: RONY should return?
         }
 
     }
@@ -289,7 +290,7 @@ JobsList::JobEntry *JobsList::getJobByPID(unsigned int job_pid) {
 void JobsList::UpdateMaxJob() {
     unsigned int current_bigger_job_id = 0;
     for (auto job: _vector_all_jobs) {
-        if (job->_job_id > current_bigger_job_id && !job->_command->got_fg) {//TODO:OREN? check
+        if (job->_job_id > current_bigger_job_id) {
             current_bigger_job_id = job->_job_id;
         }
     }
@@ -378,6 +379,7 @@ void ShowPidCommand::execute() {
     int pid = getpid();
     if (pid == -1) {
         perror("“smash error: getpid failed”");
+        return;
     }
     std::cout << "smash pid is " << (pid) << "\n";
 }
@@ -513,8 +515,10 @@ void ExternalCommand::execute() {
             if (execvp(_args[0], _args) == -1)
                 if (kill(getpid(), SIGKILL) == -1) {
                     perror("smash error: kill failed");
+                    return;
                 }
             perror("smash error: execv failed");
+            return;
         }
     }
     if (is_background_command && !_is_not_allowed_in_background) { // if father and bg
@@ -523,6 +527,7 @@ void ExternalCommand::execute() {
         smash.currentPidInFg = son_pid;
         if (waitpid(son_pid, NULL, WUNTRACED) < 0) {
             perror("smash error: waitpid failed");
+            return;
         }
         smash.currentPidInFg = 0;
     }
@@ -585,14 +590,15 @@ void ForegroundCommand::execute() {
     std::cout << _job_entry_to_fg->_command->_original_cmd_line << " : " << _job_entry_to_fg->_pid << "\n";
     if (kill(_job_entry_to_fg->_pid, SIGCONT) == -1) {
         perror("“smash error: kill failed”");
+        return;
     }
     smash.cmd = _job_entry_to_fg->_command;
     smash.currentPidInFg = _job_entry_to_fg->_pid;
     if (waitpid(_job_entry_to_fg->_pid, NULL, WUNTRACED) < 0) {
         perror("smash error: waitpid failed");
+        return;
     }
     _job_entry_to_fg->_command->got_fg = true;
-    smash._jobs_list->UpdateMaxJob(); //TODO:OREN? check
     smash.currentPidInFg = 0;
 }
 
@@ -641,6 +647,7 @@ void BackgroundCommand::execute() {
     }
     if (kill(_job_entry_to_bg->_pid, SIGCONT) == -1) {
         perror("“smash error: kill failed”");
+        return;
     }
     smash.currentPidInFg = 0; //update that no command is running now in fg
     _job_entry_to_bg->ReactivateJobEntry();
@@ -668,6 +675,7 @@ void QuitCommand::execute() {
     }
     if (kill(getpid(), SIGKILL) == 0) {
         perror("smash error: kill failed");
+        return;
     }
 //TODO:  RONY delete killed comment printed
 }
@@ -710,6 +718,7 @@ void PipeCommand::execute() {
     pid_t second_son_pid = fork();
     if (second_son_pid == -1) {
         perror("smash error: fork failed");
+        return;
     }
     if (second_son_pid == 0) { //second son
         SmallShell &smash = SmallShell::getInstance();
@@ -723,8 +732,14 @@ void PipeCommand::execute() {
     }
     close(fd[0]);
     close(fd[1]);
-    if (waitpid(first_son_pid, nullptr, 0) == -1) perror("smash error: waitpid failed");
-    if (waitpid(second_son_pid, nullptr, 0) == -1) perror("smash error: waitpid failed");
+    if (waitpid(first_son_pid, nullptr, 0) == -1) {
+        perror("smash error: waitpid failed");
+        return;
+    }
+    if (waitpid(second_son_pid, nullptr, 0) == -1) {
+        perror("smash error: waitpid failed");
+        return;
+    }
 }
 
 
@@ -766,16 +781,20 @@ void RedirectionCommand::execute() {
     // overwrite stdout with my file, and restore it for later
     if ((my_file_fd) == -1) {
         perror("smash error: open failed");
+        return;
     }
     int stdout_restore_fd = dup(STDOUT_FD);
     if (stdout_restore_fd == -1) {
         perror("smash error: dup failed");
+        return;
     }
     if (dup2(my_file_fd, STDOUT_FD) == -1) {
         perror("smash error: dup2 failed");
+        return;
     }
     if (close(my_file_fd) == -1) {
         perror("smash error: close failed");
+        return;
     }
 
     smash.executeCommand(_command.c_str(), true);
@@ -783,9 +802,11 @@ void RedirectionCommand::execute() {
     // bring back stdout to its place and close the file
     if (dup2(stdout_restore_fd, STDOUT_FD) == -1) {
         perror("smash error: dup2 failed");
+        return;
     }
     if (close(stdout_restore_fd) == -1) {
         perror("smash error: close failed");
+        return;
     }
 }
 
