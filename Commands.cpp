@@ -234,7 +234,7 @@ void JobsList::addJob(Command *cmd, unsigned int pid, bool isStopped) {
     if (getJobByPID(pid) != NULL) { // fg that was stooped. is alredy in the list
         JobEntry *fg_stopped_job = getJobByPID(pid);
         fg_stopped_job->_is_stopped = true;
-        fg_stopped_job->_command->got_fg = false;
+        //fg_stopped_job->_command->got_fg = false;
         return;
     }
     removeFinishedJobs();
@@ -556,7 +556,7 @@ void JobsCommand::execute() {
 
 
 ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line) {
-    jobs->removeFinishedJobs();
+    jobs->removeFinishedJobs(); //REMOVE
     if ((number_of_args != 1 && number_of_args != 2) || (number_of_args == 2 && !isStringANumber(_args[1]))) {
         std::cerr << "smash error: fg: invalid arguments\n";
         error_command_dont_execute = true;
@@ -576,7 +576,7 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs) : Bui
         job_id_string = _args[1];
         _job_id_to_fg = atoi(job_id_string);
         _job_entry_to_fg = jobs->getJobById(_job_id_to_fg);
-        if (_job_entry_to_fg == NULL || _job_entry_to_fg->_command->got_fg) {//TODO: rony? is this needed?
+        if (_job_entry_to_fg == NULL) {
             std::cerr << "smash error: fg: job-id " << job_id_string << " does not exist\n";
             error_command_dont_execute = true;
             return;
@@ -598,7 +598,7 @@ void ForegroundCommand::execute() {
         perror("smash error: waitpid failed");
         return;
     }
-    _job_entry_to_fg->_command->got_fg = true;
+    //_job_entry_to_fg->_command->got_fg = true;
     smash.currentPidInFg = 0;
 }
 
@@ -882,6 +882,20 @@ void KillCommand::execute() {
                 cout << "signal number " << _signal_number << " was sent to pid " << job_pid << "\n";
                 return;
             }
+        }
+    }
+
+    if (_signal_number == SIGKILL) {
+        if (kill(job_pid, _signal_number) == -1) {
+            perror("“smash error: kill failed”");
+            return;
+        } else {
+            _jobs->removeJobById(
+                    job_id);// rony added, I was thinking that the dead job wont appear existed but it is so need to delete my self from the list.
+            //unsigned int job_pid = _jobs->getJobByPID(job_pid)->_pid;
+            std::cout << "signal number " << _signal_number << " was sent to pid " << job_pid << "\n";
+            _jobs->removeFinishedJobs(); // if killed will be removed from jobs
+            return;
         }
     }
 
