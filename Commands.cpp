@@ -480,9 +480,11 @@ Command *SmallShell::CreateCommand(const char *cmd_line, bool not_allowed_in_bac
 void SmallShell::executeCommand(const char *cmd_line, bool not_allowed_in_background) {
     // TODO: Add your implementation here
     // for example:
+    string the_original_command_line = string(cmd_line);
     string cmd_trimmed = _trim(string(cmd_line));
     if (cmd_trimmed.size() == 0) return;
     cmd = CreateCommand(cmd_line, not_allowed_in_background);
+    cmd->_original_cmd_line = the_original_command_line;
     if (cmd->error_command_dont_execute != true) { cmd->execute(); }
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
