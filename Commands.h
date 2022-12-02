@@ -164,7 +164,7 @@ public:
 
         JobEntry(Command *command, unsigned int job_id, unsigned pid, bool is_stopped);
 
-        ~JobEntry();
+        ~JobEntry() {};
 
         void StopJobEntry();
 

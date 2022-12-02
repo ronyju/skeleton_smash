@@ -305,8 +305,9 @@ void JobsList::removeFinishedJobs() {
     vector<JobEntry *>::iterator it = _vector_all_jobs.begin();
     for (auto job: _vector_all_jobs) {
         if (!(is_process_exist(job->_pid))) {
-            it = it - 1; //to resume from same point we stoped before erasing
+            it = it - 1; //to resume from same point we stopped before erasing
             _vector_all_jobs.erase(it + 1);
+
             //TODO: RONY remove the job entery?
         }
         it++;
@@ -675,11 +676,7 @@ void QuitCommand::execute() {
             _job_list->killAllJobs();
         }
     }
-    if (kill(getpid(), SIGKILL) == 0) {
-        perror("smash error: kill failed");
-        return;
-    }
-//TODO:  RONY delete killed comment printed
+    exit(0);
 }
 
 PipeCommand::PipeCommand(const char *cmd_line, bool is_stderr) : Command(cmd_line), _is_stderr(is_stderr) {}
@@ -774,6 +771,7 @@ RedirectionCommand::RedirectionCommand(const char *cmd_line, file_write_approche
 void RedirectionCommand::execute() {
     SmallShell &smash = SmallShell::getInstance();
     int my_file_fd;
+    setbuf(stdout, 0);
     if (_approche == APPEND) {
         my_file_fd = open(_file_path.c_str(), O_RDWR | O_CREAT | O_APPEND, PERMISSIONS);
     } else { // OVERWRITE
@@ -810,6 +808,7 @@ void RedirectionCommand::execute() {
         perror("smash error: close failed");
         return;
     }
+    setbuf(stdout, 0);
 }
 
 // -------------------------- Kill Command ----------------------------------
