@@ -469,6 +469,8 @@ Command *SmallShell::CreateCommand(const char *cmd_line, bool not_allowed_in_bac
         return new QuitCommand(cmd_line, this->_jobs_list);
     } else if ((firstWord.compare("kill") == EQUALS) || (firstWord.compare("kill&") == EQUALS)) {
         return new KillCommand(cmd_line, this->_jobs_list);
+    } else if ((firstWord.compare("fare") == EQUALS) || (firstWord.compare("fare&") == EQUALS)) {
+        return new FareCommand(cmd_line);
     }
         // External:
     else {
